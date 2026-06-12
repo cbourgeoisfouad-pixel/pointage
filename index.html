@@ -15,12 +15,10 @@
     --ink: #111827;
     --muted: #6b7280;
     --line: #e5e7eb;
-    --present: #16a34a;
-    --present-bg: #dcfce7;
-    --retard: #d97706;
-    --retard-bg: #fef3c7;
-    --absent: #dc2626;
-    --absent-bg: #fee2e2;
+    --green: #16a34a;  --green-bg: #dcfce7;
+    --amber: #d97706;  --amber-bg: #fef3c7;
+    --red: #dc2626;    --red-bg: #fee2e2;
+    --blue: #2563eb;   --blue-bg: #dbeafe;
     --primary: #2563eb;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -29,66 +27,71 @@
   html, body { margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--ink);
-    -webkit-text-size-adjust: 100%;
-    overscroll-behavior-y: contain;
+    background: var(--bg); color: var(--ink);
+    -webkit-text-size-adjust: 100%; overscroll-behavior-y: contain;
   }
 
-  /* ---- En-tête ---- */
+  /* ---- En-tête avec la DATE EN GROS ---- */
   header {
     position: sticky; top: 0; z-index: 10;
     background: #1f2937; color: #fff;
-    padding: calc(var(--safe-top) + 12px) 16px 12px;
+    padding: calc(var(--safe-top) + 12px) 16px 16px;
   }
-  .header-top { display: flex; align-items: center; justify-content: space-between; }
-  .header-top h1 { font-size: 18px; margin: 0; font-weight: 700; }
-  .date { font-size: 13px; color: #cbd5e1; margin-top: 2px; text-transform: capitalize; }
+  .header-top { display: flex; align-items: flex-start; justify-content: space-between; }
+  .title-zone { min-width: 0; }
+  .app-name { font-size: 13px; color: #9ca3af; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
+  .big-date { font-size: 26px; font-weight: 800; line-height: 1.15; margin-top: 2px; text-transform: capitalize; }
   .icon-btn {
     background: rgba(255,255,255,.12); border: none; color: #fff;
     width: 40px; height: 40px; border-radius: 10px; font-size: 20px;
-    display: grid; place-items: center; cursor: pointer;
+    display: grid; place-items: center; cursor: pointer; flex: none;
   }
   .icon-btn:active { background: rgba(255,255,255,.25); }
+  .btn-stack { display: flex; gap: 8px; }
 
-  /* ---- Bascule matin / soir ---- */
-  .seg {
-    display: flex; background: rgba(255,255,255,.12);
-    border-radius: 12px; padding: 4px; margin-top: 14px; gap: 4px;
-  }
-  .seg button {
-    flex: 1; border: none; background: transparent; color: #cbd5e1;
-    padding: 9px 0; border-radius: 9px; font-size: 15px; font-weight: 600; cursor: pointer;
-  }
-  .seg button.active { background: #fff; color: #111827; }
-
-  /* ---- Résumé compteurs ---- */
-  .summary {
-    display: flex; gap: 8px; padding: 12px 16px 4px; font-size: 13px; font-weight: 600;
-  }
-  .chip { padding: 5px 10px; border-radius: 999px; display: flex; align-items: center; gap: 5px; }
-  .chip.p { background: var(--present-bg); color: var(--present); }
-  .chip.r { background: var(--retard-bg); color: var(--retard); }
-  .chip.a { background: var(--absent-bg); color: var(--absent); }
+  /* ---- Résumé ---- */
+  .summary { display: flex; gap: 8px; padding: 12px 16px 2px; font-size: 13px; font-weight: 700; flex-wrap: wrap; }
+  .chip { padding: 5px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; }
+  .chip.g { background: var(--green-bg); color: var(--green); }
+  .chip.am { background: var(--amber-bg); color: var(--amber); }
+  .chip.r { background: var(--red-bg); color: var(--red); }
   .chip.u { background: #e5e7eb; color: var(--muted); }
 
-  /* ---- Liste ---- */
+  /* ---- Liste des salariés ---- */
   main { padding: 8px 12px calc(28px + var(--safe-bottom)); }
   .person {
     background: var(--card); border-radius: 14px; padding: 12px;
     margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,.05);
   }
-  .person .name { font-size: 17px; font-weight: 600; margin-bottom: 10px; }
-  .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-  .actions button {
-    border: 1.5px solid var(--line); background: #fff; color: var(--muted);
-    padding: 12px 0; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer;
-    transition: transform .05s;
+  .person .name { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .col-label {
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px;
+    display: flex; align-items: center; gap: 5px;
   }
-  .actions button:active { transform: scale(.96); }
-  .actions button.sel.present { background: var(--present); border-color: var(--present); color: #fff; }
-  .actions button.sel.retard { background: var(--retard); border-color: var(--retard); color: #fff; }
-  .actions button.sel.absent { background: var(--absent); border-color: var(--absent); color: #fff; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #d1d5db; flex: none; }
+  .dot.on { background: var(--green); }
+
+  /* menus déroulants */
+  select {
+    width: 100%; -webkit-appearance: none; appearance: none;
+    border: 1.5px solid var(--line); border-radius: 10px;
+    padding: 11px 30px 11px 12px; font-size: 15px; font-weight: 600;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
+    color: var(--ink); cursor: pointer;
+  }
+  select.v-green  { background-color: var(--green-bg); border-color: var(--green); color: var(--green); }
+  select.v-amber  { background-color: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+  select.v-red    { background-color: var(--red-bg);   border-color: var(--red);   color: var(--red); }
+  select.v-blue   { background-color: var(--blue-bg);  border-color: var(--blue);  color: var(--blue); }
+
+  input[type="time"] {
+    width: 100%; margin-top: 8px; border: 1.5px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; font-size: 15px; font-weight: 600; color: var(--ink);
+    background: #fff; -webkit-appearance: none;
+  }
+  input[type="time"]:focus { outline: none; border-color: var(--primary); }
 
   /* ---- Etat vide ---- */
   .empty { text-align: center; color: var(--muted); padding: 60px 24px; }
@@ -98,12 +101,11 @@
     padding: 14px 22px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px;
   }
 
-  /* ---- Vues secondaires (réglages / historique) ---- */
+  /* ---- Vues secondaires ---- */
   .screen { display: none; }
   .screen.show { display: block; }
   #home.screen { display: block; }
   #home.screen.hide { display: none; }
-
   .sub-head {
     position: sticky; top: 0; z-index: 10; background: #1f2937; color: #fff;
     padding: calc(var(--safe-top) + 12px) 12px 12px; display: flex; align-items: center; gap: 10px;
@@ -111,56 +113,32 @@
   .sub-head h2 { font-size: 18px; margin: 0; font-weight: 700; flex: 1; }
 
   .settings-list { padding: 12px; }
-  .emp-row {
-    display: flex; align-items: center; gap: 10px; background: var(--card);
-    border-radius: 12px; padding: 8px 10px; margin-bottom: 8px;
-  }
-  .emp-row input {
-    flex: 1; border: none; font-size: 16px; padding: 8px; background: transparent; color: var(--ink);
-  }
+  .emp-row { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 12px; padding: 8px 10px; margin-bottom: 8px; }
+  .emp-row input { flex: 1; border: none; font-size: 16px; padding: 8px; background: transparent; color: var(--ink); }
   .emp-row input:focus { outline: none; background: #f9fafb; border-radius: 8px; }
-  .del-btn {
-    background: var(--absent-bg); color: var(--absent); border: none;
-    width: 38px; height: 38px; border-radius: 9px; font-size: 18px; cursor: pointer; flex: none;
-  }
-  .add-row {
-    display: flex; gap: 8px; padding: 4px 12px 16px;
-  }
-  .add-row input {
-    flex: 1; border: 1.5px solid var(--line); border-radius: 12px; padding: 13px; font-size: 16px;
-  }
+  .del-btn { background: var(--red-bg); color: var(--red); border: none; width: 38px; height: 38px; border-radius: 9px; font-size: 18px; cursor: pointer; flex: none; }
+  .add-row { display: flex; gap: 8px; padding: 4px 12px 16px; }
+  .add-row input { flex: 1; border: 1.5px solid var(--line); border-radius: 12px; padding: 13px; font-size: 16px; }
   .add-row input:focus { outline: none; border-color: var(--primary); }
-  .add-btn {
-    background: var(--primary); color: #fff; border: none; border-radius: 12px;
-    padding: 0 18px; font-size: 24px; font-weight: 700; cursor: pointer;
-  }
+  .add-btn { background: var(--primary); color: #fff; border: none; border-radius: 12px; padding: 0 18px; font-size: 24px; font-weight: 700; cursor: pointer; }
 
-  /* ---- Historique ---- */
-  .hist-day {
-    background: var(--card); border-radius: 12px; padding: 14px; margin: 0 12px 10px;
-    cursor: pointer; display: flex; align-items: center; justify-content: space-between;
-  }
-  .hist-day .d { font-size: 16px; font-weight: 600; text-transform: capitalize; }
-  .hist-day .mini { display: flex; gap: 6px; margin-top: 6px; font-size: 12px; }
-  .hist-day .mini span { padding: 2px 7px; border-radius: 999px; font-weight: 700; }
+  .hist-day { background: var(--card); border-radius: 12px; padding: 14px; margin: 0 12px 10px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+  .hist-day .d { font-size: 16px; font-weight: 700; text-transform: capitalize; }
+  .hist-day .mini { display: flex; gap: 6px; margin-top: 6px; }
   .toolbar { padding: 12px; }
-  .btn-export {
-    width: 100%; background: #047857; color: #fff; border: none; border-radius: 12px;
-    padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer;
-  }
+  .btn-export { width: 100%; background: #047857; color: #fff; border: none; border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; }
   .hint { color: var(--muted); font-size: 13px; text-align: center; padding: 4px 24px 20px; line-height: 1.5; }
 
-  .detail-slot { padding: 4px 12px; }
-  .detail-slot h3 { font-size: 14px; color: var(--muted); margin: 16px 4px 8px; text-transform: uppercase; letter-spacing: .5px; }
-  .detail-row {
-    display: flex; justify-content: space-between; align-items: center; background: var(--card);
-    border-radius: 10px; padding: 12px; margin-bottom: 6px;
-  }
-  .badge { padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; }
-  .badge.present { background: var(--present-bg); color: var(--present); }
-  .badge.retard { background: var(--retard-bg); color: var(--retard); }
-  .badge.absent { background: var(--absent-bg); color: var(--absent); }
+  .detail-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--card); border-radius: 10px; padding: 12px; margin: 0 12px 6px; }
+  .detail-row .dn { font-weight: 700; }
+  .detail-vals { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .badge { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .badge.green { background: var(--green-bg); color: var(--green); }
+  .badge.amber { background: var(--amber-bg); color: var(--amber); }
+  .badge.red { background: var(--red-bg); color: var(--red); }
+  .badge.blue { background: var(--blue-bg); color: var(--blue); }
   .badge.none { background: #e5e7eb; color: var(--muted); }
+  .detail-head { font-size: 13px; color: var(--muted); margin: 16px 16px 8px; text-transform: uppercase; letter-spacing: .5px; }
 </style>
 </head>
 <body>
@@ -169,18 +147,14 @@
 <div id="home" class="screen">
   <header>
     <div class="header-top">
-      <div>
-        <h1>Pointage</h1>
-        <div class="date" id="todayLabel"></div>
+      <div class="title-zone">
+        <div class="app-name">Pointage</div>
+        <div class="big-date" id="bigDate"></div>
       </div>
-      <div style="display:flex; gap:8px;">
+      <div class="btn-stack">
         <button class="icon-btn" onclick="showHistory()" title="Historique">🗓</button>
         <button class="icon-btn" onclick="showSettings()" title="Réglages">⚙️</button>
       </div>
-    </div>
-    <div class="seg">
-      <button id="segMatin" class="active" onclick="setSlot('matin')">☀️ Matin</button>
-      <button id="segSoir" onclick="setSlot('soir')">🌙 Soir</button>
     </div>
   </header>
   <div class="summary" id="summary"></div>
@@ -220,25 +194,46 @@
     <button class="icon-btn" onclick="showHistory()">‹</button>
     <h2 id="detailTitle">Détail</h2>
   </div>
-  <div class="detail-slot" id="detailBody"></div>
+  <div id="detailBody"></div>
 </div>
 
 <script>
 /* =========================================================
-   Stockage : tout est gardé sur le téléphone (localStorage)
+   Stockage local (sur le téléphone)
    - employees : [{ id, name }]
-   - records   : { "AAAA-MM-JJ": { matin: {empId: statut}, soir: {...} } }
-   statut = "present" | "retard" | "absent"
+   - records   : { "AAAA-MM-JJ": { empId: { matin, soir, heure } } }
+       matin : "" | "present" | "retard" | "absent"
+       soir  : "" | "heure" | "avance" | "retard"   (parti à l'heure / en avance / en retard)
+       heure : "" | "HH:MM"
    ========================================================= */
 const STORE_EMP = "pointage_employees";
 const STORE_REC = "pointage_records";
+const STORE_SEED = "pointage_seeded";
 
-let employees = load(STORE_EMP, []);
+const DEFAULT_EMPLOYEES = [
+  "Mathieu Garnier",
+  "Karim Benali",
+  "David Lefèbvre",
+  "Thomas Moreau",
+  "Sofiane Andrieu",
+];
+
+let employees = load(STORE_EMP, null);
 let records   = load(STORE_REC, {});
-let currentSlot = "matin";
+
+// Au tout premier lancement : on crée 5 salariés de test
+if (employees === null) {
+  if (!localStorage.getItem(STORE_SEED)) {
+    employees = DEFAULT_EMPLOYEES.map(n => ({ id: uid(), name: n }));
+    localStorage.setItem(STORE_SEED, "1");
+  } else {
+    employees = [];
+  }
+  save();
+}
 
 function load(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+  try { const v = JSON.parse(localStorage.getItem(key)); return v ?? fallback; }
   catch { return fallback; }
 }
 function save() {
@@ -257,34 +252,45 @@ function frDate(key) {
   return new Date(y, m-1, d).toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
 }
 
-/* ---- Accès aux pointages du jour ---- */
-function dayRec(key) {
-  if (!records[key]) records[key] = { matin: {}, soir: {} };
-  if (!records[key].matin) records[key].matin = {};
-  if (!records[key].soir)  records[key].soir = {};
-  return records[key];
+/* ---- Accès au pointage d'un salarié pour un jour ---- */
+function entry(dateKey, empId) {
+  if (!records[dateKey]) records[dateKey] = {};
+  if (!records[dateKey][empId]) records[dateKey][empId] = { matin:"", soir:"", heure:"" };
+  return records[dateKey][empId];
 }
+
+/* ---- Libellés & couleurs ---- */
+const MATIN_OPTS = [
+  { v:"",        label:"—",        cls:"" },
+  { v:"present", label:"Présent",  cls:"v-green" },
+  { v:"retard",  label:"Retard",   cls:"v-amber" },
+  { v:"absent",  label:"Absent",   cls:"v-red" },
+];
+const SOIR_OPTS = [
+  { v:"",       label:"—",                cls:"" },
+  { v:"heure",  label:"Parti à l'heure",  cls:"v-green" },
+  { v:"avance", label:"Parti en avance",  cls:"v-blue" },
+  { v:"retard", label:"Parti en retard",  cls:"v-amber" },
+];
+function optClass(opts, val) { const o = opts.find(x => x.v === val); return o ? o.cls : ""; }
+function optLabel(opts, val) { const o = opts.find(x => x.v === val); return o ? o.label : "—"; }
+const badgeColor = { "v-green":"green", "v-amber":"amber", "v-red":"red", "v-blue":"blue", "":"none" };
 
 /* =========================================================
    ÉCRAN ACCUEIL
    ========================================================= */
-function setSlot(slot) {
-  currentSlot = slot;
-  document.getElementById("segMatin").classList.toggle("active", slot==="matin");
-  document.getElementById("segSoir").classList.toggle("active", slot==="soir");
-  renderHome();
-}
+function setMatin(empId, val) { entry(todayKey(), empId).matin = val; save(); renderHome(); }
+function setSoir(empId, val)  { entry(todayKey(), empId).soir  = val; save(); renderHome(); }
+function setHeure(empId, val) { entry(todayKey(), empId).heure = val; save(); updateSoirDot(empId); }
 
-function mark(empId, status) {
-  const rec = dayRec(todayKey())[currentSlot];
-  rec[empId] = (rec[empId] === status) ? undefined : status; // re-toucher = annuler
-  if (rec[empId] === undefined) delete rec[empId];
-  save();
-  renderHome();
+function updateSoirDot(empId) {
+  const e = entry(todayKey(), empId);
+  const dot = document.querySelector('.dot-soir[data-id="'+empId+'"]');
+  if (dot) dot.classList.toggle("on", !!(e.soir || e.heure));
 }
 
 function renderHome() {
-  document.getElementById("todayLabel").textContent = frDate(todayKey());
+  document.getElementById("bigDate").textContent = frDate(todayKey());
   const list = document.getElementById("list");
   const summary = document.getElementById("summary");
 
@@ -298,34 +304,51 @@ function renderHome() {
     return;
   }
 
-  const rec = dayRec(todayKey())[currentSlot];
-  let nP=0, nR=0, nA=0, nU=0;
+  // Résumé du matin
+  let nP=0,nR=0,nA=0,nU=0;
   employees.forEach(e => {
-    const s = rec[e.id];
-    if (s==="present") nP++; else if (s==="retard") nR++; else if (s==="absent") nA++; else nU++;
+    const m = entry(todayKey(), e.id).matin;
+    if (m==="present") nP++; else if (m==="retard") nR++; else if (m==="absent") nA++; else nU++;
   });
   summary.innerHTML =
-    `<span class="chip p">✓ ${nP}</span>` +
-    `<span class="chip r">⏱ ${nR}</span>` +
-    `<span class="chip a">✕ ${nA}</span>` +
-    (nU ? `<span class="chip u">— ${nU}</span>` : "");
+    `<span class="chip g">✓ ${nP} présents</span>` +
+    `<span class="chip am">⏱ ${nR} retard</span>` +
+    `<span class="chip r">✕ ${nA} absents</span>` +
+    (nU ? `<span class="chip u">— ${nU} à pointer</span>` : "");
 
   list.innerHTML = employees.map(e => {
-    const s = rec[e.id] || "";
+    const en = entry(todayKey(), e.id);
+    const matinSel = `
+      <select class="${optClass(MATIN_OPTS, en.matin)}" onchange="setMatin('${e.id}', this.value)">
+        ${MATIN_OPTS.map(o => `<option value="${o.v}" ${o.v===en.matin?"selected":""}>${o.label}</option>`).join("")}
+      </select>`;
+    const soirSel = `
+      <select class="${optClass(SOIR_OPTS, en.soir)}" onchange="setSoir('${e.id}', this.value)">
+        ${SOIR_OPTS.map(o => `<option value="${o.v}" ${o.v===en.soir?"selected":""}>${o.label}</option>`).join("")}
+      </select>`;
+    const heureInput = `<input type="time" value="${en.heure||""}" onchange="setHeure('${e.id}', this.value)">`;
+    const matinOn = !!en.matin;
+    const soirOn = !!(en.soir || en.heure);
     return `
       <div class="person">
         <div class="name">${escapeHtml(e.name)}</div>
-        <div class="actions">
-          <button class="${s==="present"?"sel present":""}" onclick="mark('${e.id}','present')">Présent</button>
-          <button class="${s==="retard"?"sel retard":""}"  onclick="mark('${e.id}','retard')">Retard</button>
-          <button class="${s==="absent"?"sel absent":""}"  onclick="mark('${e.id}','absent')">Absent</button>
+        <div class="cols">
+          <div class="col">
+            <div class="col-label"><span class="dot ${matinOn?"on":""}"></span>Matin</div>
+            ${matinSel}
+          </div>
+          <div class="col">
+            <div class="col-label"><span class="dot dot-soir ${soirOn?"on":""}" data-id="${e.id}"></span>Soir</div>
+            ${soirSel}
+            ${heureInput}
+          </div>
         </div>
       </div>`;
   }).join("");
 }
 
 /* =========================================================
-   ÉCRAN RÉGLAGES (salariés)
+   ÉCRAN RÉGLAGES
    ========================================================= */
 function renderSettings() {
   const c = document.getElementById("empList");
@@ -344,20 +367,14 @@ function addEmp() {
   const name = input.value.trim();
   if (!name) return;
   employees.push({ id: uid(), name });
-  save();
-  input.value = "";
-  renderSettings();
+  save(); input.value = ""; renderSettings();
 }
-function renameEmp(id, name) {
-  const e = employees.find(x => x.id === id);
-  if (e) { e.name = name.trim() || e.name; save(); }
-}
+function renameEmp(id, name) { const e = employees.find(x => x.id === id); if (e) { e.name = name.trim() || e.name; save(); } }
 function delEmp(id) {
   const e = employees.find(x => x.id === id);
   if (!confirm(`Supprimer ${e ? e.name : "ce salarié"} de la liste ?`)) return;
   employees = employees.filter(x => x.id !== id);
-  save();
-  renderSettings();
+  save(); renderSettings();
 }
 
 /* =========================================================
@@ -367,60 +384,48 @@ function renderHistory() {
   const keys = Object.keys(records).sort().reverse();
   const c = document.getElementById("histList");
   const hint = document.getElementById("histHint");
-  if (keys.length === 0) {
-    c.innerHTML = "";
-    hint.textContent = "Aucune journée enregistrée pour l'instant.";
-    return;
-  }
+  if (keys.length === 0) { c.innerHTML = ""; hint.textContent = "Aucune journée enregistrée pour l'instant."; return; }
   hint.textContent = "Touche une journée pour voir le détail.";
   c.innerHTML = keys.map(k => {
-    const counts = slotCounts(k);
+    let nP=0,nR=0,nA=0;
+    employees.forEach(e => {
+      const m = (records[k][e.id]||{}).matin;
+      if (m==="present") nP++; else if (m==="retard") nR++; else if (m==="absent") nA++;
+    });
     return `
       <div class="hist-day" onclick="showDetail('${k}')">
         <div>
           <div class="d">${frDate(k)}</div>
           <div class="mini">
-            <span class="chip p">✓ ${counts.present}</span>
-            <span class="chip r">⏱ ${counts.retard}</span>
-            <span class="chip a">✕ ${counts.absent}</span>
+            <span class="chip g">✓ ${nP}</span>
+            <span class="chip am">⏱ ${nR}</span>
+            <span class="chip r">✕ ${nA}</span>
           </div>
         </div>
         <div style="color:var(--muted); font-size:22px;">›</div>
       </div>`;
   }).join("");
 }
-// compte un statut une seule fois par personne sur la journée (le pire des deux créneaux : absent > retard > present)
-function slotCounts(key) {
-  const rec = records[key] || {};
-  const out = { present:0, retard:0, absent:0 };
-  const rank = { present:1, retard:2, absent:3 };
-  const worst = {};
-  ["matin","soir"].forEach(sl => {
-    Object.entries(rec[sl] || {}).forEach(([id, st]) => {
-      if (!worst[id] || rank[st] > rank[worst[id]]) worst[id] = st;
-    });
-  });
-  Object.values(worst).forEach(st => out[st]++);
-  return out;
-}
 
 function showDetail(key) {
   document.getElementById("detailTitle").textContent = frDate(key);
-  const rec = records[key] || { matin:{}, soir:{} };
+  const dayRec = records[key] || {};
   const body = document.getElementById("detailBody");
-  const labelOf = { present:"Présent", retard:"Retard", absent:"Absent" };
-
-  function slotBlock(title, slot) {
-    const data = rec[slot] || {};
-    const rows = employees.map(e => {
-      const st = data[e.id];
-      const cls = st || "none";
-      const txt = st ? labelOf[st] : "—";
-      return `<div class="detail-row"><span>${escapeHtml(e.name)}</span><span class="badge ${cls}">${txt}</span></div>`;
-    }).join("");
-    return `<h3>${title}</h3>${rows || '<p class="hint">Aucun salarié.</p>'}`;
-  }
-  body.innerHTML = slotBlock("☀️ Matin","matin") + slotBlock("🌙 Soir","soir");
+  body.innerHTML = `<div class="detail-head">Pointages de la journée</div>` + employees.map(e => {
+    const en = dayRec[e.id] || { matin:"", soir:"", heure:"" };
+    const mCls = badgeColor[optClass(MATIN_OPTS, en.matin)];
+    const sCls = badgeColor[optClass(SOIR_OPTS, en.soir)];
+    const heureTxt = en.heure ? `<span class="badge blue">🕐 ${en.heure}</span>` : "";
+    return `
+      <div class="detail-row">
+        <span class="dn">${escapeHtml(e.name)}</span>
+        <span class="detail-vals">
+          <span class="badge ${mCls}">${optLabel(MATIN_OPTS, en.matin)}</span>
+          <span class="badge ${sCls}">${optLabel(SOIR_OPTS, en.soir)}</span>
+          ${heureTxt}
+        </span>
+      </div>`;
+  }).join("");
   switchScreen("detail");
 }
 
@@ -428,22 +433,20 @@ function showDetail(key) {
 function exportCSV() {
   const keys = Object.keys(records).sort();
   if (keys.length === 0) { alert("Rien à exporter pour l'instant."); return; }
-  const labelOf = { present:"Présent", retard:"Retard", absent:"Absent" };
-  let rows = [["Date","Salarié","Matin","Soir"]];
+  let rows = [["Date","Salarié","Matin","Soir","Heure soir"]];
   keys.forEach(k => {
-    const rec = records[k];
     employees.forEach(e => {
-      const m = rec.matin && rec.matin[e.id] ? labelOf[rec.matin[e.id]] : "";
-      const s = rec.soir  && rec.soir[e.id]  ? labelOf[rec.soir[e.id]]  : "";
-      if (m || s) rows.push([k, e.name, m, s]);
+      const en = records[k][e.id];
+      if (!en) return;
+      if (!en.matin && !en.soir && !en.heure) return;
+      rows.push([k, e.name, optLabel(MATIN_OPTS, en.matin), optLabel(SOIR_OPTS, en.soir), en.heure || ""]);
     });
   });
-  const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(";")).join("\r\n");
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(";")).join("\r\n");
   const blob = new Blob(["﻿"+csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
-  a.download = "pointage_" + todayKey() + ".csv";
+  a.href = url; a.download = "pointage_" + todayKey() + ".csv";
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
@@ -452,9 +455,7 @@ function exportCSV() {
    NAVIGATION
    ========================================================= */
 function switchScreen(id) {
-  ["home","settings","history","detail"].forEach(s => {
-    document.getElementById(s).classList.toggle("show", s===id);
-  });
+  ["home","settings","history","detail"].forEach(s => document.getElementById(s).classList.toggle("show", s===id));
   document.getElementById("home").classList.toggle("hide", id!=="home");
   window.scrollTo(0,0);
 }
@@ -462,11 +463,9 @@ function showHome()     { renderHome();     switchScreen("home"); }
 function showSettings() { renderSettings(); switchScreen("settings"); }
 function showHistory()  { renderHistory();  switchScreen("history"); }
 
-/* ---- Sécurité affichage ---- */
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s){ return escapeHtml(s); }
 
-/* ---- Démarrage ---- */
 renderHome();
 </script>
 </body>
