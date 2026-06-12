@@ -6,8 +6,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Pointage">
-<meta name="theme-color" content="#1f2937">
-<title>Pointage</title>
+<meta name="theme-color" content="#ffffff">
+<title>Mon application</title>
 <style>
   :root{
     --bg:#f3f4f6; --card:#fff; --ink:#111827; --muted:#6b7280; --line:#e5e7eb;
@@ -15,12 +15,60 @@
     --red:#dc2626; --red-bg:#fee2e2; --blue:#2563eb; --blue-bg:#dbeafe;
     --primary:#2563eb;
     --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+    --nav-h:54px; --nav-total:calc(env(safe-area-inset-top,0px) + 54px);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);-webkit-text-size-adjust:100%;overscroll-behavior-y:contain;}
 
-  header{position:sticky;top:0;z-index:10;background:#1f2937;color:#fff;padding:calc(var(--safe-top) + 12px) 14px 12px;}
+  /* ===================== BARRE DE NAVIGATION GLOBALE ===================== */
+  #appbar{
+    position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);
+    padding-top:var(--safe-top); height:var(--nav-total);
+    display:flex;align-items:center;gap:12px;padding-left:12px;padding-right:12px;
+  }
+  .hamburger{
+    width:42px;height:42px;border:none;background:#f3f4f6;border-radius:10px;cursor:pointer;
+    display:grid;place-items:center;flex:none;
+  }
+  .hamburger span{display:block;width:20px;height:2.5px;background:var(--ink);border-radius:2px;margin:2.5px 0;}
+  .brand{font-size:17px;font-weight:800;}
+  .desktop-tabs{display:none;gap:6px;margin-left:auto;}
+  .tab{border:none;background:#f3f4f6;color:var(--muted);padding:9px 16px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;}
+  .tab:hover{background:#e5e7eb;}
+  .tab.active{background:var(--primary);color:#fff;}
+  @media(min-width:760px){
+    .hamburger{display:none;}
+    .brand{display:none;}
+    .desktop-tabs{display:flex;}
+  }
+
+  /* tiroir mobile (menu ☰) */
+  #overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:60;opacity:0;pointer-events:none;transition:opacity .25s;}
+  #overlay.show{opacity:1;pointer-events:auto;}
+  #drawer{
+    position:fixed;top:0;left:0;bottom:0;width:76%;max-width:300px;background:#fff;z-index:70;
+    transform:translateX(-100%);transition:transform .25s;box-shadow:2px 0 20px rgba(0,0,0,.18);
+    padding-top:var(--safe-top);
+  }
+  #drawer.open{transform:none;}
+  .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:14px 14px 12px;border-bottom:1px solid var(--line);}
+  .drawer-head .t{font-size:16px;font-weight:800;}
+  .drawer-close{width:36px;height:36px;border:none;background:#f3f4f6;border-radius:9px;font-size:18px;cursor:pointer;}
+  .drawer-link{display:block;width:100%;text-align:left;border:none;background:none;padding:15px 18px;font-size:17px;font-weight:600;color:var(--ink);cursor:pointer;}
+  .drawer-link.active{background:var(--blue-bg);color:var(--blue);}
+
+  /* conteneur des pages */
+  .page{display:none;}
+  .page.active{display:block;}
+
+  /* page vide (placeholder) */
+  .page-empty{min-height:60vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 24px;color:var(--muted);}
+  .pe-num{font-size:34px;font-weight:800;color:var(--ink);margin-bottom:10px;}
+  .page-empty p{line-height:1.5;font-size:15px;}
+
+  /* ===================== POINTAGE (PAGE 1) ===================== */
+  header{position:sticky;top:var(--nav-total);z-index:10;background:#1f2937;color:#fff;padding:12px 14px;}
   .header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
   .app-name{font-size:12px;color:#9ca3af;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
   .datenav{display:flex;align-items:center;gap:8px;margin-top:2px;}
@@ -72,7 +120,7 @@
   .screen.show{display:block;}
   #home.screen{display:block;}
   #home.screen.hide{display:none;}
-  .sub-head{position:sticky;top:0;z-index:10;background:#1f2937;color:#fff;padding:calc(var(--safe-top) + 12px) 12px 12px;display:flex;align-items:center;gap:10px;}
+  .sub-head{position:sticky;top:var(--nav-total);z-index:10;background:#1f2937;color:#fff;padding:12px;display:flex;align-items:center;gap:10px;}
   .sub-head h2{font-size:18px;margin:0;font-weight:700;flex:1;}
 
   .settings-list{padding:12px;}
@@ -86,7 +134,6 @@
   .add-row input:focus{outline:none;border-color:var(--primary);}
   .add-btn{background:var(--primary);color:#fff;border:none;border-radius:12px;padding:0 18px;font-size:24px;font-weight:700;cursor:pointer;}
 
-  /* éditeur d'horaires (trame) */
   .preset{background:var(--card);border-radius:12px;padding:12px;margin:12px;}
   .preset .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
   .preset .row + .row{margin-top:8px;}
@@ -107,7 +154,6 @@
   .sw input:checked + .slider{background:var(--green);}
   .sw input:checked + .slider:before{transform:translateX(18px);}
 
-  /* exception (override) */
   .ov-card{background:var(--card);border-radius:12px;padding:14px;margin:12px;}
   .ov-card .line{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);}
   .ov-card .line:last-child{border-bottom:none;}
@@ -142,98 +188,136 @@
 </head>
 <body>
 
-<!-- ===== ACCUEIL / JOUR ===== -->
-<div id="home" class="screen">
-  <header>
-    <div class="header-top">
-      <div style="min-width:0;">
-        <div class="app-name">Pointage</div>
-        <div class="datenav">
-          <button class="nav-arrow" onclick="changeDay(-1)">‹</button>
-          <div class="big-date" id="bigDate"></div>
-          <button class="nav-arrow" onclick="changeDay(1)">›</button>
+<!-- ===================== BARRE DE NAV GLOBALE ===================== -->
+<div id="appbar">
+  <button class="hamburger" onclick="openDrawer()" aria-label="Menu"><span></span><span></span><span></span></button>
+  <div class="brand" id="brand">Page 1</div>
+  <div class="desktop-tabs" id="desktopTabs"></div>
+</div>
+
+<!-- tiroir mobile -->
+<div id="overlay" onclick="closeDrawer()"></div>
+<nav id="drawer">
+  <div class="drawer-head"><span class="t">Menu</span><button class="drawer-close" onclick="closeDrawer()">✕</button></div>
+  <div id="drawerLinks"></div>
+</nav>
+
+<!-- ===================== PAGE 1 : POINTAGE ===================== -->
+<section class="page active" id="page1">
+
+  <div id="home" class="screen">
+    <header>
+      <div class="header-top">
+        <div style="min-width:0;">
+          <div class="app-name">Pointage</div>
+          <div class="datenav">
+            <button class="nav-arrow" onclick="changeDay(-1)">‹</button>
+            <div class="big-date" id="bigDate"></div>
+            <button class="nav-arrow" onclick="changeDay(1)">›</button>
+          </div>
+          <button class="today-btn" id="todayBtn" onclick="goToday()" style="display:none;">Revenir à aujourd'hui</button>
         </div>
-        <button class="today-btn" id="todayBtn" onclick="goToday()" style="display:none;">Revenir à aujourd'hui</button>
+        <div class="btn-stack">
+          <button class="icon-btn" onclick="showHistory()" title="Historique">🗓</button>
+          <button class="icon-btn" onclick="showSettings()" title="Réglages">⚙️</button>
+        </div>
       </div>
-      <div class="btn-stack">
-        <button class="icon-btn" onclick="showHistory()" title="Historique">🗓</button>
-        <button class="icon-btn" onclick="showSettings()" title="Réglages">⚙️</button>
+    </header>
+    <main id="list"></main>
+  </div>
+
+  <div id="settings" class="screen">
+    <div class="sub-head"><button class="icon-btn" onclick="showHome()">‹</button><h2>Les salariés</h2></div>
+    <div class="settings-list" id="empList"></div>
+    <div class="add-row">
+      <input id="newEmp" type="text" placeholder="Nom du salarié" autocomplete="off">
+      <button class="add-btn" onclick="addEmp()">+</button>
+    </div>
+    <p class="hint">Touche « Horaires » pour régler la semaine type d'un salarié (entrée une seule fois, elle se répète chaque semaine).</p>
+  </div>
+
+  <div id="template" class="screen">
+    <div class="sub-head"><button class="icon-btn" onclick="showSettings()">‹</button><h2 id="tplTitle">Horaires</h2></div>
+    <div class="preset">
+      <div class="row">
+        <span class="hint2">Remplissage rapide :</span>
+        <input type="time" id="presetArr" value="08:00"> <span class="arrow">→</span>
+        <input type="time" id="presetDep" value="17:00">
+      </div>
+      <div class="row">
+        <button class="pbtn" onclick="applyPreset([1,2,3,4,5])">Appliquer Lun→Ven</button>
+        <button class="pbtn" onclick="applyPreset([1,2,3,4,5,6,0])">Tous les jours</button>
       </div>
     </div>
-  </header>
-  <main id="list"></main>
-</div>
-
-<!-- ===== RÉGLAGES (salariés) ===== -->
-<div id="settings" class="screen">
-  <div class="sub-head"><button class="icon-btn" onclick="showHome()">‹</button><h2>Les salariés</h2></div>
-  <div class="settings-list" id="empList"></div>
-  <div class="add-row">
-    <input id="newEmp" type="text" placeholder="Nom du salarié" autocomplete="off">
-    <button class="add-btn" onclick="addEmp()">+</button>
+    <div id="tplDays"></div>
+    <p class="hint">Décoche un jour pour « repos ». Tu peux mettre une heure différente chaque jour.</p>
   </div>
-  <p class="hint">Touche « Horaires » pour régler la semaine type d'un salarié (entrée une seule fois, elle se répète chaque semaine).</p>
-</div>
 
-<!-- ===== ÉDITEUR HORAIRES (trame hebdo) ===== -->
-<div id="template" class="screen">
-  <div class="sub-head"><button class="icon-btn" onclick="showSettings()">‹</button><h2 id="tplTitle">Horaires</h2></div>
-  <div class="preset">
-    <div class="row">
-      <span class="hint2">Remplissage rapide :</span>
-      <input type="time" id="presetArr" value="08:00"> <span class="tpl-day"><span class="arrow">→</span></span>
-      <input type="time" id="presetDep" value="17:00">
+  <div id="override" class="screen">
+    <div class="sub-head"><button class="icon-btn" onclick="showHome()">‹</button><h2>Horaire exceptionnel</h2></div>
+    <p class="hint" id="ovSub" style="text-align:left;padding:14px 16px 0;"></p>
+    <div class="ov-card" id="ovCard"></div>
+    <div class="ov-actions">
+      <button class="ov-reset" onclick="clearOverride()">Rétablir l'habituel</button>
+      <button class="ov-save" onclick="saveOverride()">Valider pour ce jour</button>
     </div>
-    <div class="row">
-      <button class="pbtn" onclick="applyPreset([1,2,3,4,5])">Appliquer Lun→Ven</button>
-      <button class="pbtn" onclick="applyPreset([1,2,3,4,5,6,0])">Tous les jours</button>
-    </div>
+    <p class="hint">« Valider » ne change que ce jour-là. La semaine type n'est pas modifiée.</p>
   </div>
-  <div id="tplDays"></div>
-  <p class="hint">Décoche un jour pour « repos ». Tu peux mettre une heure différente chaque jour.</p>
-</div>
 
-<!-- ===== EXCEPTION (horaire d'un jour précis) ===== -->
-<div id="override" class="screen">
-  <div class="sub-head"><button class="icon-btn" onclick="showHome()">‹</button><h2>Horaire exceptionnel</h2></div>
-  <p class="hint" id="ovSub" style="text-align:left;padding:14px 16px 0;"></p>
-  <div class="ov-card" id="ovCard"></div>
-  <div class="ov-actions">
-    <button class="ov-reset" onclick="clearOverride()">Rétablir l'habituel</button>
-    <button class="ov-save" onclick="saveOverride()">Valider pour ce jour</button>
+  <div id="history" class="screen">
+    <div class="sub-head"><button class="icon-btn" onclick="showHome()">‹</button><h2>Historique</h2></div>
+    <div class="toolbar"><button class="btn-export" onclick="exportCSV()">⬇️ Exporter en Excel (CSV)</button></div>
+    <div id="histList"></div>
+    <p class="hint" id="histHint"></p>
   </div>
-  <p class="hint">« Valider » ne change que ce jour-là. La semaine type n'est pas modifiée.</p>
-</div>
 
-<!-- ===== HISTORIQUE ===== -->
-<div id="history" class="screen">
-  <div class="sub-head"><button class="icon-btn" onclick="showHome()">‹</button><h2>Historique</h2></div>
-  <div class="toolbar"><button class="btn-export" onclick="exportCSV()">⬇️ Exporter en Excel (CSV)</button></div>
-  <div id="histList"></div>
-  <p class="hint" id="histHint"></p>
-</div>
+  <div id="detail" class="screen">
+    <div class="sub-head"><button class="icon-btn" onclick="showHistory()">‹</button><h2 id="detailTitle">Détail</h2></div>
+    <div id="detailBody"></div>
+  </div>
 
-<!-- ===== DÉTAIL D'UN JOUR ===== -->
-<div id="detail" class="screen">
-  <div class="sub-head"><button class="icon-btn" onclick="showHistory()">‹</button><h2 id="detailTitle">Détail</h2></div>
-  <div id="detailBody"></div>
-</div>
+</section>
+
+<!-- ===================== PAGES 2 À 5 (VIDES) ===================== -->
+<section class="page" id="page2"><div class="page-empty"><div class="pe-num">Page 2</div><p>Page vide — on la construira plus tard.</p></div></section>
+<section class="page" id="page3"><div class="page-empty"><div class="pe-num">Page 3</div><p>Page vide — on la construira plus tard.</p></div></section>
+<section class="page" id="page4"><div class="page-empty"><div class="pe-num">Page 4</div><p>Page vide — on la construira plus tard.</p></div></section>
+<section class="page" id="page5"><div class="page-empty"><div class="pe-num">Page 5</div><p>Page vide — on la construira plus tard.</p></div></section>
 
 <script>
 /* =========================================================
-   STOCKAGE LOCAL (sur le téléphone)
-   - employees : [{id,name}]
-   - templates : { empId: { 0..6: {work,arr,dep} } }   (0=Dim .. 6=Sam, getDay())
-   - overrides : { "AAAA-MM-JJ": { empId: {work,arr,dep} } }  exceptions par date
-   - records   : { "AAAA-MM-JJ": { empId: {arrStatus,arrTime,depStatus,depTime} } }
+   NAVIGATION GLOBALE (5 pages)
+   ========================================================= */
+const PAGES=["Page 1","Page 2","Page 3","Page 4","Page 5"];
+let currentPage=1;
+
+(function buildNav(){
+  document.getElementById("desktopTabs").innerHTML=PAGES.map((n,i)=>
+    `<button class="tab" data-page="${i+1}" onclick="goPage(${i+1})">${n}</button>`).join("");
+  document.getElementById("drawerLinks").innerHTML=PAGES.map((n,i)=>
+    `<button class="drawer-link" data-page="${i+1}" onclick="goPage(${i+1})">${n}</button>`).join("");
+})();
+
+function goPage(n){
+  currentPage=n;
+  for(let i=1;i<=5;i++) document.getElementById("page"+i).classList.toggle("active",i===n);
+  document.querySelectorAll(".tab,.drawer-link").forEach(el=>el.classList.toggle("active",+el.dataset.page===n));
+  document.getElementById("brand").textContent=PAGES[n-1];
+  closeDrawer();
+  if(n===1) showHome();
+  window.scrollTo(0,0);
+}
+function openDrawer(){ document.getElementById("drawer").classList.add("open"); document.getElementById("overlay").classList.add("show"); }
+function closeDrawer(){ document.getElementById("drawer").classList.remove("open"); document.getElementById("overlay").classList.remove("show"); }
+
+/* =========================================================
+   POINTAGE (PAGE 1) — stockage local sur le téléphone
    ========================================================= */
 const K_EMP="pointage_employees", K_TPL="pointage_templates", K_OVR="pointage_overrides", K_REC="pointage_records", K_SEED="pointage_seeded";
 
-const JOURS=["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
 const JOURS_C=["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
-const ORDRE=[1,2,3,4,5,6,0]; // lundi d'abord
+const ORDRE=[1,2,3,4,5,6,0];
 const DEFAULT_EMP=["Mathieu Garnier","Karim Benali","David Lefèbvre","Thomas Moreau","Sofiane Andrieu"];
-
 const ARR_LABEL={present:"Présent",retard:"En retard",absent:"Absent"};
 const DEP_LABEL={parti:"Parti",avance:"Parti en avance",retard:"Parti en retard"};
 const ARR_COLOR={present:"green",retard:"amber",absent:"red"};
@@ -243,16 +327,12 @@ let employees=load(K_EMP,null);
 let templates=load(K_TPL,{});
 let overrides=load(K_OVR,{});
 let records  =load(K_REC,{});
-
 let viewDate=startOfToday();
-let currentEmp=null; // pour l'éditeur d'horaires
+let currentEmp=null;
 
-/* premier lancement : 5 salariés + trame Lun-Ven 8h-17h */
 if(employees===null){
-  if(!localStorage.getItem(K_SEED)){
-    employees=DEFAULT_EMP.map(n=>({id:uid(),name:n}));
-    localStorage.setItem(K_SEED,"1");
-  } else { employees=[]; }
+  if(!localStorage.getItem(K_SEED)){ employees=DEFAULT_EMP.map(n=>({id:uid(),name:n})); localStorage.setItem(K_SEED,"1"); }
+  else { employees=[]; }
 }
 employees.forEach(e=>ensureTemplate(e.id));
 saveAll();
@@ -265,17 +345,9 @@ function saveAll(){
   localStorage.setItem(K_REC,JSON.stringify(records));
 }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function defaultTemplate(){ const t={}; for(let d=0;d<7;d++) t[d]={work:false,arr:"08:00",dep:"17:00"}; [1,2,3,4,5].forEach(d=>t[d].work=true); return t; }
+function ensureTemplate(id){ if(!templates[id]) templates[id]=defaultTemplate(); for(let d=0;d<7;d++) if(!templates[id][d]) templates[id][d]={work:false,arr:"08:00",dep:"17:00"}; }
 
-function defaultTemplate(){
-  const t={}; for(let d=0;d<7;d++) t[d]={work:false,arr:"08:00",dep:"17:00"};
-  [1,2,3,4,5].forEach(d=>t[d].work=true); return t;
-}
-function ensureTemplate(id){
-  if(!templates[id]) templates[id]=defaultTemplate();
-  for(let d=0;d<7;d++) if(!templates[id][d]) templates[id][d]={work:false,arr:"08:00",dep:"17:00"};
-}
-
-/* ---- Dates ---- */
 function startOfToday(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
 function key(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function parseKey(k){ const [y,m,d]=k.split("-").map(Number); return new Date(y,m-1,d); }
@@ -283,61 +355,42 @@ function frDate(d){ return d.toLocaleDateString("fr-FR",{weekday:"long",day:"num
 function isToday(d){ return key(d)===key(startOfToday()); }
 function toMin(t){ if(!t||t.indexOf(":")<0) return null; const [h,m]=t.split(":").map(Number); return h*60+m; }
 
-/* ---- Horaire prévu (exception sinon trame) ---- */
-function planned(dateKey,empId){
-  const ov=overrides[dateKey] && overrides[dateKey][empId];
-  if(ov) return ov;
-  const wd=parseKey(dateKey).getDay();
-  return templates[empId] ? templates[empId][wd] : {work:false,arr:"",dep:""};
+function planned(dk,id){
+  const ov=overrides[dk] && overrides[dk][id]; if(ov) return ov;
+  const wd=parseKey(dk).getDay();
+  return templates[id] ? templates[id][wd] : {work:false,arr:"",dep:""};
 }
-function recEntry(dateKey,empId){
-  if(!records[dateKey]) records[dateKey]={};
-  if(!records[dateKey][empId]) records[dateKey][empId]={arrStatus:"",arrTime:"",depStatus:"",depTime:""};
-  return records[dateKey][empId];
+function recEntry(dk,id){
+  if(!records[dk]) records[dk]={};
+  if(!records[dk][id]) records[dk][id]={arrStatus:"",arrTime:"",depStatus:"",depTime:""};
+  return records[dk][id];
 }
 
-/* =========================================================
-   ÉCRAN DU JOUR
-   ========================================================= */
 function changeDay(delta){ viewDate.setDate(viewDate.getDate()+delta); renderHome(); }
 function goToday(){ viewDate=startOfToday(); renderHome(); }
-
-function pendingAction(dk,empId){
-  const en=recEntry(dk,empId);
-  if(!en.arrStatus) return {type:"arr"};
-  if(en.arrStatus==="absent") return null;
-  if(!en.depStatus) return {type:"dep"};
-  return null;
-}
+function pendingAction(dk,id){ const en=recEntry(dk,id); if(!en.arrStatus) return {type:"arr"}; if(en.arrStatus==="absent") return null; if(!en.depStatus) return {type:"dep"}; return null; }
 
 function renderHome(){
   const dk=key(viewDate);
   document.getElementById("bigDate").textContent=frDate(viewDate);
   document.getElementById("todayBtn").style.display=isToday(viewDate)?"none":"inline-block";
   const list=document.getElementById("list");
-
   if(employees.length===0){
     list.innerHTML=`<div class="empty"><p>Aucun salarié pour l'instant.<br>Ajoute ton équipe pour commencer.</p>
-      <button class="btn-primary" onclick="showSettings()">＋ Ajouter les salariés</button></div>`;
-    return;
+      <button class="btn-primary" onclick="showSettings()">＋ Ajouter les salariés</button></div>`; return;
   }
-
-  // qui travaille ce jour-là ?
   const working=[], repos=[];
   employees.forEach(e=>{ (planned(dk,e.id).work?working:repos).push(e); });
-
   let html="";
   if(working.length===0){
     html+=`<div class="empty"><p>Personne de prévu ${isToday(viewDate)?"aujourd'hui":"ce jour"}.</p></div>`;
   } else if(isToday(viewDate)){
-    // sections : à pointer maintenant / à venir / fait
     const now=new Date().getHours()*60+new Date().getMinutes();
     const grp={now:[],soon:[],done:[]};
     working.forEach(e=>{
       const pa=pendingAction(dk,e.id);
       if(!pa){ grp.done.push({e}); return; }
-      const p=planned(dk,e.id);
-      const t=toMin(pa.type==="arr"?p.arr:p.dep);
+      const p=planned(dk,e.id); const t=toMin(pa.type==="arr"?p.arr:p.dep);
       if(t===null || t<=now+15) grp.now.push({e,t:t??0}); else grp.soon.push({e,t});
     });
     grp.now.sort((a,b)=>a.t-b.t); grp.soon.sort((a,b)=>a.t-b.t);
@@ -347,10 +400,7 @@ function renderHome(){
   } else {
     html+=`<div class="section-title">Prévus ce jour</div>`+working.map(e=>card(dk,e,false)).join("");
   }
-
-  if(repos.length){
-    html+=`<div class="section-title">😴 Repos</div><div class="repos">`+repos.map(e=>`<b>${escapeHtml(e.name)}</b>`).join(" · ")+`</div>`;
-  }
+  if(repos.length) html+=`<div class="section-title">😴 Repos</div><div class="repos">`+repos.map(e=>`<b>${escapeHtml(e.name)}</b>`).join(" · ")+`</div>`;
   list.innerHTML=html;
 }
 
@@ -387,30 +437,21 @@ function card(dk,e,isNow){
 function setArr(id,status){
   const dk=key(viewDate), en=recEntry(dk,id), p=planned(dk,id);
   if(en.arrStatus===status){ en.arrStatus=""; en.arrTime=""; }
-  else{
-    en.arrStatus=status;
+  else{ en.arrStatus=status;
     if(status==="present") en.arrTime=p.arr||"";
     else if(status==="absent"){ en.arrTime=""; en.depStatus=""; en.depTime=""; }
-    else if(status==="retard") en.arrTime=en.arrTime||p.arr||"";
-  }
+    else if(status==="retard") en.arrTime=en.arrTime||p.arr||""; }
   saveAll(); renderHome();
 }
 function setArrTime(id,v){ recEntry(key(viewDate),id).arrTime=v; saveAll(); }
 function setDep(id,status){
   const dk=key(viewDate), en=recEntry(dk,id), p=planned(dk,id);
   if(en.depStatus===status){ en.depStatus=""; en.depTime=""; }
-  else{
-    en.depStatus=status;
-    if(status==="parti") en.depTime=p.dep||"";
-    else en.depTime=en.depTime||p.dep||"";
-  }
+  else{ en.depStatus=status; if(status==="parti") en.depTime=p.dep||""; else en.depTime=en.depTime||p.dep||""; }
   saveAll(); renderHome();
 }
 function setDepTime(id,v){ recEntry(key(viewDate),id).depTime=v; saveAll(); }
 
-/* =========================================================
-   RÉGLAGES (liste salariés)
-   ========================================================= */
 function renderSettings(){
   const c=document.getElementById("empList");
   if(employees.length===0){ c.innerHTML=`<p class="hint">La liste est vide. Ajoute un premier salarié ci-dessous.</p>`; return; }
@@ -421,20 +462,10 @@ function renderSettings(){
       <button class="del-btn" onclick="delEmp('${e.id}')">🗑</button>
     </div>`).join("");
 }
-function addEmp(){
-  const i=document.getElementById("newEmp"); const n=i.value.trim(); if(!n) return;
-  const e={id:uid(),name:n}; employees.push(e); ensureTemplate(e.id); saveAll(); i.value=""; renderSettings();
-}
+function addEmp(){ const i=document.getElementById("newEmp"); const n=i.value.trim(); if(!n) return; const e={id:uid(),name:n}; employees.push(e); ensureTemplate(e.id); saveAll(); i.value=""; renderSettings(); }
 function renameEmp(id,n){ const e=employees.find(x=>x.id===id); if(e){ e.name=n.trim()||e.name; saveAll(); } }
-function delEmp(id){
-  const e=employees.find(x=>x.id===id);
-  if(!confirm(`Supprimer ${e?e.name:"ce salarié"} ?`)) return;
-  employees=employees.filter(x=>x.id!==id); saveAll(); renderSettings();
-}
+function delEmp(id){ const e=employees.find(x=>x.id===id); if(!confirm(`Supprimer ${e?e.name:"ce salarié"} ?`)) return; employees=employees.filter(x=>x.id!==id); saveAll(); renderSettings(); }
 
-/* =========================================================
-   ÉDITEUR HORAIRES (trame hebdo)
-   ========================================================= */
 function openTemplate(id){ currentEmp=id; ensureTemplate(id); renderTemplate(); switchScreen("template"); }
 function renderTemplate(){
   const e=employees.find(x=>x.id===currentEmp); if(!e) return;
@@ -456,52 +487,33 @@ function renderTemplate(){
 function setTplWork(d,on){ templates[currentEmp][d].work=on; saveAll(); renderTemplate(); }
 function setTplArr(d,v){ templates[currentEmp][d].arr=v; saveAll(); }
 function setTplDep(d,v){ templates[currentEmp][d].dep=v; saveAll(); }
-function applyPreset(days){
-  const a=document.getElementById("presetArr").value, b=document.getElementById("presetDep").value;
-  days.forEach(d=>{ templates[currentEmp][d]={work:true,arr:a,dep:b}; });
-  saveAll(); renderTemplate();
-}
+function applyPreset(days){ const a=document.getElementById("presetArr").value,b=document.getElementById("presetDep").value; days.forEach(d=>{ templates[currentEmp][d]={work:true,arr:a,dep:b}; }); saveAll(); renderTemplate(); }
 
-/* =========================================================
-   EXCEPTION (horaire d'un jour précis)
-   ========================================================= */
 let ovEmp=null;
 function openOverride(id){
-  ovEmp=id;
-  const dk=key(viewDate), e=employees.find(x=>x.id===id), p=planned(dk,id);
+  ovEmp=id; const dk=key(viewDate), e=employees.find(x=>x.id===id), p=planned(dk,id);
   document.getElementById("ovSub").innerHTML=`<b>${escapeHtml(e.name)}</b> — ${frDate(viewDate)}`;
   const work=p.work, arr=p.arr||"08:00", dep=p.dep||"17:00";
   document.getElementById("ovCard").innerHTML=`
     <div class="line"><span>Travaille ce jour</span>
       <label class="sw"><input type="checkbox" id="ovWork" ${work?"checked":""} onchange="ovToggle(this.checked)"><span class="slider"></span></label></div>
     <div class="line" id="ovTimes" style="${work?"":"opacity:.35;pointer-events:none;"}">
-      <span>Horaire</span>
-      <span><input type="time" id="ovArr" value="${arr}"> → <input type="time" id="ovDep" value="${dep}"></span>
+      <span>Horaire</span><span><input type="time" id="ovArr" value="${arr}"> → <input type="time" id="ovDep" value="${dep}"></span>
     </div>`;
   switchScreen("override");
 }
 function ovToggle(on){ document.getElementById("ovTimes").style.cssText=on?"":"opacity:.35;pointer-events:none;"; }
 function saveOverride(){
-  const dk=key(viewDate);
-  const work=document.getElementById("ovWork").checked;
+  const dk=key(viewDate); const work=document.getElementById("ovWork").checked;
   const arr=document.getElementById("ovArr").value, dep=document.getElementById("ovDep").value;
   if(!overrides[dk]) overrides[dk]={};
-  overrides[dk][ovEmp]={work,arr:work?arr:"",dep:work?dep:""};
-  saveAll(); showHome();
+  overrides[dk][ovEmp]={work,arr:work?arr:"",dep:work?dep:""}; saveAll(); showHome();
 }
-function clearOverride(){
-  const dk=key(viewDate);
-  if(overrides[dk]){ delete overrides[dk][ovEmp]; if(!Object.keys(overrides[dk]).length) delete overrides[dk]; }
-  saveAll(); showHome();
-}
+function clearOverride(){ const dk=key(viewDate); if(overrides[dk]){ delete overrides[dk][ovEmp]; if(!Object.keys(overrides[dk]).length) delete overrides[dk]; } saveAll(); showHome(); }
 
-/* =========================================================
-   HISTORIQUE
-   ========================================================= */
 function renderHistory(){
   const keys=Object.keys(records).sort().reverse();
   const c=document.getElementById("histList"), hint=document.getElementById("histHint");
-  // ne garder que les jours réellement pointés
   const real=keys.filter(k=>Object.values(records[k]).some(en=>en.arrStatus||en.depStatus));
   if(real.length===0){ c.innerHTML=""; hint.textContent="Aucune journée pointée pour l'instant."; return; }
   hint.textContent="Touche une journée pour voir le détail.";
@@ -519,36 +531,23 @@ function showDetail(k){
   const day=records[k]||{};
   document.getElementById("detailBody").innerHTML=`<div class="detail-head">Pointages de la journée</div>`+employees.map(e=>{
     const en=day[e.id]||{arrStatus:"",depStatus:"",arrTime:"",depTime:""};
-    const p=planned(k,e.id);
     const aB=en.arrStatus?`<span class="badge ${ARR_COLOR[en.arrStatus]}">${ARR_LABEL[en.arrStatus]}${en.arrStatus!=="absent"&&en.arrTime?" "+en.arrTime:""}</span>`:`<span class="badge none">—</span>`;
     const dB=(en.arrStatus==="absent")?"":(en.depStatus?`<span class="badge ${DEP_COLOR[en.depStatus]}">${DEP_LABEL[en.depStatus]}${en.depTime?" "+en.depTime:""}</span>`:`<span class="badge none">—</span>`);
     return `<div class="detail-row"><span class="dn">${escapeHtml(e.name)}</span><span class="detail-vals">${aB}${dB}</span></div>`;
   }).join("");
   switchScreen("detail");
 }
-
-/* ---- Export CSV ---- */
 function exportCSV(){
   const keys=Object.keys(records).sort().filter(k=>Object.values(records[k]).some(en=>en.arrStatus||en.depStatus));
   if(keys.length===0){ alert("Rien à exporter pour l'instant."); return; }
   let rows=[["Date","Salarié","Arrivée prévue","Arrivée réelle","Statut arrivée","Sortie prévue","Sortie réelle","Statut sortie"]];
-  keys.forEach(k=>{
-    employees.forEach(e=>{
-      const en=records[k][e.id]; if(!en||(!en.arrStatus&&!en.depStatus)) return;
-      const p=planned(k,e.id);
-      rows.push([k,e.name,p.arr||"",en.arrTime||"",en.arrStatus?ARR_LABEL[en.arrStatus]:"",p.dep||"",en.depTime||"",en.depStatus?DEP_LABEL[en.depStatus]:""]);
-    });
-  });
+  keys.forEach(k=>{ employees.forEach(e=>{ const en=records[k][e.id]; if(!en||(!en.arrStatus&&!en.depStatus)) return; const p=planned(k,e.id);
+    rows.push([k,e.name,p.arr||"",en.arrTime||"",en.arrStatus?ARR_LABEL[en.arrStatus]:"",p.dep||"",en.depTime||"",en.depStatus?DEP_LABEL[en.depStatus]:""]); }); });
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\r\n");
-  const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});
-  const url=URL.createObjectURL(blob), a=document.createElement("a");
-  a.href=url; a.download="pointage_"+key(startOfToday())+".csv";
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+  const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"}); const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download="pointage_"+key(startOfToday())+".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
-/* =========================================================
-   NAVIGATION
-   ========================================================= */
 function switchScreen(id){
   ["home","settings","template","override","history","detail"].forEach(s=>document.getElementById(s).classList.toggle("show",s===id));
   document.getElementById("home").classList.toggle("hide",id!=="home");
@@ -561,7 +560,8 @@ function showHistory(){ renderHistory(); switchScreen("history"); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s){ return escapeHtml(s); }
 
-renderHome();
+/* démarrage */
+goPage(1);
 </script>
 </body>
 </html>
