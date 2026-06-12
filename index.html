@@ -9,147 +9,151 @@
 <meta name="theme-color" content="#1f2937">
 <title>Pointage</title>
 <style>
-  :root {
-    --bg: #f3f4f6;
-    --card: #ffffff;
-    --ink: #111827;
-    --muted: #6b7280;
-    --line: #e5e7eb;
-    --green: #16a34a;  --green-bg: #dcfce7;
-    --amber: #d97706;  --amber-bg: #fef3c7;
-    --red: #dc2626;    --red-bg: #fee2e2;
-    --blue: #2563eb;   --blue-bg: #dbeafe;
-    --primary: #2563eb;
-    --safe-top: env(safe-area-inset-top, 0px);
-    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  :root{
+    --bg:#f3f4f6; --card:#fff; --ink:#111827; --muted:#6b7280; --line:#e5e7eb;
+    --green:#16a34a; --green-bg:#dcfce7; --amber:#d97706; --amber-bg:#fef3c7;
+    --red:#dc2626; --red-bg:#fee2e2; --blue:#2563eb; --blue-bg:#dbeafe;
+    --primary:#2563eb;
+    --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
   }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg); color: var(--ink);
-    -webkit-text-size-adjust: 100%; overscroll-behavior-y: contain;
-  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);-webkit-text-size-adjust:100%;overscroll-behavior-y:contain;}
 
-  /* ---- En-tête avec la DATE EN GROS ---- */
-  header {
-    position: sticky; top: 0; z-index: 10;
-    background: #1f2937; color: #fff;
-    padding: calc(var(--safe-top) + 12px) 16px 16px;
-  }
-  .header-top { display: flex; align-items: flex-start; justify-content: space-between; }
-  .title-zone { min-width: 0; }
-  .app-name { font-size: 13px; color: #9ca3af; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
-  .big-date { font-size: 26px; font-weight: 800; line-height: 1.15; margin-top: 2px; text-transform: capitalize; }
-  .icon-btn {
-    background: rgba(255,255,255,.12); border: none; color: #fff;
-    width: 40px; height: 40px; border-radius: 10px; font-size: 20px;
-    display: grid; place-items: center; cursor: pointer; flex: none;
-  }
-  .icon-btn:active { background: rgba(255,255,255,.25); }
-  .btn-stack { display: flex; gap: 8px; }
+  header{position:sticky;top:0;z-index:10;background:#1f2937;color:#fff;padding:calc(var(--safe-top) + 12px) 14px 12px;}
+  .header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+  .app-name{font-size:12px;color:#9ca3af;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+  .datenav{display:flex;align-items:center;gap:8px;margin-top:2px;}
+  .datenav .big-date{font-size:22px;font-weight:800;line-height:1.1;text-transform:capitalize;}
+  .nav-arrow{background:rgba(255,255,255,.12);border:none;color:#fff;width:30px;height:30px;border-radius:8px;font-size:17px;cursor:pointer;flex:none;display:grid;place-items:center;}
+  .today-btn{margin-top:8px;background:#fbbf24;color:#1f2937;border:none;border-radius:8px;padding:5px 12px;font-size:13px;font-weight:700;cursor:pointer;}
+  .icon-btn{background:rgba(255,255,255,.12);border:none;color:#fff;width:40px;height:40px;border-radius:10px;font-size:20px;display:grid;place-items:center;cursor:pointer;flex:none;}
+  .icon-btn:active{background:rgba(255,255,255,.25);}
+  .btn-stack{display:flex;gap:8px;}
 
-  /* ---- Résumé ---- */
-  .summary { display: flex; gap: 8px; padding: 12px 16px 2px; font-size: 13px; font-weight: 700; flex-wrap: wrap; }
-  .chip { padding: 5px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; }
-  .chip.g { background: var(--green-bg); color: var(--green); }
-  .chip.am { background: var(--amber-bg); color: var(--amber); }
-  .chip.r { background: var(--red-bg); color: var(--red); }
-  .chip.u { background: #e5e7eb; color: var(--muted); }
+  main{padding:8px 12px calc(28px + var(--safe-bottom));}
+  .section-title{font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:16px 4px 8px;display:flex;align-items:center;gap:7px;}
+  .section-title.now{color:var(--green);}
+  .pulse{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(22,163,74,.5);animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5);}70%{box-shadow:0 0 0 7px rgba(22,163,74,0);}100%{box-shadow:0 0 0 0 rgba(22,163,74,0);}}
 
-  /* ---- Liste des salariés ---- */
-  main { padding: 8px 12px calc(28px + var(--safe-bottom)); }
-  .person {
-    background: var(--card); border-radius: 14px; padding: 12px;
-    margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,.05);
-  }
-  .person .name { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .col-label {
-    font-size: 12px; font-weight: 700; color: var(--muted);
-    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px;
-    display: flex; align-items: center; gap: 5px;
-  }
-  .dot { width: 9px; height: 9px; border-radius: 50%; background: #d1d5db; flex: none; }
-  .dot.on { background: var(--green); }
+  .person{background:var(--card);border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .person.now{box-shadow:0 0 0 2px var(--green), 0 1px 2px rgba(0,0,0,.05);}
+  .p-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .p-name{font-size:17px;font-weight:700;}
+  .edit-day{background:#f3f4f6;border:none;color:var(--muted);border-radius:8px;padding:5px 9px;font-size:12px;font-weight:700;cursor:pointer;}
 
-  /* menus déroulants */
-  select {
-    width: 100%; -webkit-appearance: none; appearance: none;
-    border: 1.5px solid var(--line); border-radius: 10px;
-    padding: 11px 30px 11px 12px; font-size: 15px; font-weight: 600;
-    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
-    color: var(--ink); cursor: pointer;
-  }
-  select.v-green  { background-color: var(--green-bg); border-color: var(--green); color: var(--green); }
-  select.v-amber  { background-color: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
-  select.v-red    { background-color: var(--red-bg);   border-color: var(--red);   color: var(--red); }
-  select.v-blue   { background-color: var(--blue-bg);  border-color: var(--blue);  color: var(--blue); }
+  .slot{border:1px solid var(--line);border-radius:11px;padding:9px 10px;margin-bottom:8px;}
+  .slot:last-child{margin-bottom:0;}
+  .slot-head{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;}
+  .slot-head .lbl{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+  .slot-head .plan{font-size:17px;font-weight:800;}
+  .slot-head .plan.none{color:var(--muted);font-weight:600;}
+  .qbtns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;}
+  .qbtns button{border:1.5px solid var(--line);background:#fff;color:var(--muted);padding:11px 0;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;transition:transform .05s;}
+  .qbtns button:active{transform:scale(.96);}
+  .qbtns button.sel.green{background:var(--green);border-color:var(--green);color:#fff;}
+  .qbtns button.sel.amber{background:var(--amber);border-color:var(--amber);color:#fff;}
+  .qbtns button.sel.red{background:var(--red);border-color:var(--red);color:#fff;}
+  .qbtns button.sel.blue{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .slot-foot{margin-top:8px;font-size:14px;font-weight:600;}
+  .slot-foot.ok{color:var(--green);}
+  .slot-foot input[type="time"]{border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-size:15px;font-weight:700;color:var(--ink);}
+  .slot-foot label{color:var(--muted);font-size:13px;margin-right:6px;}
 
-  input[type="time"] {
-    width: 100%; margin-top: 8px; border: 1.5px solid var(--line); border-radius: 10px;
-    padding: 10px 12px; font-size: 15px; font-weight: 600; color: var(--ink);
-    background: #fff; -webkit-appearance: none;
-  }
-  input[type="time"]:focus { outline: none; border-color: var(--primary); }
+  .repos{background:#eef1f4;border-radius:12px;padding:12px;color:var(--muted);font-size:14px;line-height:1.5;}
+  .repos b{color:var(--ink);}
 
-  /* ---- Etat vide ---- */
-  .empty { text-align: center; color: var(--muted); padding: 60px 24px; }
-  .empty p { line-height: 1.5; }
-  .btn-primary {
-    background: var(--primary); color: #fff; border: none; border-radius: 12px;
-    padding: 14px 22px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px;
-  }
+  .empty{text-align:center;color:var(--muted);padding:48px 24px;}
+  .empty p{line-height:1.5;}
+  .btn-primary{background:var(--primary);color:#fff;border:none;border-radius:12px;padding:14px 22px;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px;}
 
-  /* ---- Vues secondaires ---- */
-  .screen { display: none; }
-  .screen.show { display: block; }
-  #home.screen { display: block; }
-  #home.screen.hide { display: none; }
-  .sub-head {
-    position: sticky; top: 0; z-index: 10; background: #1f2937; color: #fff;
-    padding: calc(var(--safe-top) + 12px) 12px 12px; display: flex; align-items: center; gap: 10px;
-  }
-  .sub-head h2 { font-size: 18px; margin: 0; font-weight: 700; flex: 1; }
+  .screen{display:none;}
+  .screen.show{display:block;}
+  #home.screen{display:block;}
+  #home.screen.hide{display:none;}
+  .sub-head{position:sticky;top:0;z-index:10;background:#1f2937;color:#fff;padding:calc(var(--safe-top) + 12px) 12px 12px;display:flex;align-items:center;gap:10px;}
+  .sub-head h2{font-size:18px;margin:0;font-weight:700;flex:1;}
 
-  .settings-list { padding: 12px; }
-  .emp-row { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 12px; padding: 8px 10px; margin-bottom: 8px; }
-  .emp-row input { flex: 1; border: none; font-size: 16px; padding: 8px; background: transparent; color: var(--ink); }
-  .emp-row input:focus { outline: none; background: #f9fafb; border-radius: 8px; }
-  .del-btn { background: var(--red-bg); color: var(--red); border: none; width: 38px; height: 38px; border-radius: 9px; font-size: 18px; cursor: pointer; flex: none; }
-  .add-row { display: flex; gap: 8px; padding: 4px 12px 16px; }
-  .add-row input { flex: 1; border: 1.5px solid var(--line); border-radius: 12px; padding: 13px; font-size: 16px; }
-  .add-row input:focus { outline: none; border-color: var(--primary); }
-  .add-btn { background: var(--primary); color: #fff; border: none; border-radius: 12px; padding: 0 18px; font-size: 24px; font-weight: 700; cursor: pointer; }
+  .settings-list{padding:12px;}
+  .emp-row{display:flex;align-items:center;gap:8px;background:var(--card);border-radius:12px;padding:8px 10px;margin-bottom:8px;}
+  .emp-row input.nm{flex:1;border:none;font-size:16px;padding:8px;background:transparent;color:var(--ink);min-width:0;}
+  .emp-row input.nm:focus{outline:none;background:#f9fafb;border-radius:8px;}
+  .hours-btn{background:var(--blue-bg);color:var(--blue);border:none;border-radius:9px;padding:9px 11px;font-size:13px;font-weight:700;cursor:pointer;flex:none;}
+  .del-btn{background:var(--red-bg);color:var(--red);border:none;width:38px;height:38px;border-radius:9px;font-size:18px;cursor:pointer;flex:none;}
+  .add-row{display:flex;gap:8px;padding:4px 12px 16px;}
+  .add-row input{flex:1;border:1.5px solid var(--line);border-radius:12px;padding:13px;font-size:16px;}
+  .add-row input:focus{outline:none;border-color:var(--primary);}
+  .add-btn{background:var(--primary);color:#fff;border:none;border-radius:12px;padding:0 18px;font-size:24px;font-weight:700;cursor:pointer;}
 
-  .hist-day { background: var(--card); border-radius: 12px; padding: 14px; margin: 0 12px 10px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
-  .hist-day .d { font-size: 16px; font-weight: 700; text-transform: capitalize; }
-  .hist-day .mini { display: flex; gap: 6px; margin-top: 6px; }
-  .toolbar { padding: 12px; }
-  .btn-export { width: 100%; background: #047857; color: #fff; border: none; border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; }
-  .hint { color: var(--muted); font-size: 13px; text-align: center; padding: 4px 24px 20px; line-height: 1.5; }
+  /* éditeur d'horaires (trame) */
+  .preset{background:var(--card);border-radius:12px;padding:12px;margin:12px;}
+  .preset .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .preset .row + .row{margin-top:8px;}
+  .preset input[type="time"]{border:1.5px solid var(--line);border-radius:9px;padding:9px 10px;font-size:15px;font-weight:700;}
+  .preset .pbtn{background:var(--blue-bg);color:var(--blue);border:none;border-radius:9px;padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer;}
+  .preset .hint2{color:var(--muted);font-size:12px;}
+  .tpl-day{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:12px;padding:10px 12px;margin:0 12px 8px;}
+  .tpl-day .dname{width:42px;font-weight:800;font-size:14px;flex:none;}
+  .tpl-day .times{display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end;}
+  .tpl-day .times input[type="time"]{border:1.5px solid var(--line);border-radius:9px;padding:9px 8px;font-size:15px;font-weight:700;width:104px;}
+  .tpl-day .times .arrow{color:var(--muted);}
+  .tpl-day.off .times{opacity:.35;pointer-events:none;}
+  .tpl-day .reposlbl{flex:1;text-align:right;color:var(--muted);font-weight:600;}
+  .sw{position:relative;width:46px;height:28px;flex:none;}
+  .sw input{opacity:0;width:0;height:0;}
+  .sw .slider{position:absolute;inset:0;background:#cbd5e1;border-radius:999px;transition:.2s;cursor:pointer;}
+  .sw .slider:before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+  .sw input:checked + .slider{background:var(--green);}
+  .sw input:checked + .slider:before{transform:translateX(18px);}
 
-  .detail-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--card); border-radius: 10px; padding: 12px; margin: 0 12px 6px; }
-  .detail-row .dn { font-weight: 700; }
-  .detail-vals { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-  .badge { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-  .badge.green { background: var(--green-bg); color: var(--green); }
-  .badge.amber { background: var(--amber-bg); color: var(--amber); }
-  .badge.red { background: var(--red-bg); color: var(--red); }
-  .badge.blue { background: var(--blue-bg); color: var(--blue); }
-  .badge.none { background: #e5e7eb; color: var(--muted); }
-  .detail-head { font-size: 13px; color: var(--muted); margin: 16px 16px 8px; text-transform: uppercase; letter-spacing: .5px; }
+  /* exception (override) */
+  .ov-card{background:var(--card);border-radius:12px;padding:14px;margin:12px;}
+  .ov-card .line{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);}
+  .ov-card .line:last-child{border-bottom:none;}
+  .ov-card input[type="time"]{border:1.5px solid var(--line);border-radius:9px;padding:9px 10px;font-size:15px;font-weight:700;width:110px;}
+  .ov-actions{display:flex;gap:8px;margin:0 12px;}
+  .ov-actions button{flex:1;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;}
+  .ov-save{background:var(--primary);color:#fff;}
+  .ov-reset{background:#f3f4f6;color:var(--muted);}
+
+  .hist-day{background:var(--card);border-radius:12px;padding:14px;margin:0 12px 10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;}
+  .hist-day .d{font-size:16px;font-weight:700;text-transform:capitalize;}
+  .hist-day .mini{display:flex;gap:6px;margin-top:6px;}
+  .chip{padding:4px 9px;border-radius:999px;font-size:12px;font-weight:700;display:inline-flex;gap:4px;}
+  .chip.g{background:var(--green-bg);color:var(--green);}
+  .chip.am{background:var(--amber-bg);color:var(--amber);}
+  .chip.r{background:var(--red-bg);color:var(--red);}
+  .toolbar{padding:12px;}
+  .btn-export{width:100%;background:#047857;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;}
+  .hint{color:var(--muted);font-size:13px;text-align:center;padding:4px 24px 20px;line-height:1.5;}
+
+  .detail-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card);border-radius:10px;padding:12px;margin:0 12px 6px;}
+  .detail-row .dn{font-weight:700;}
+  .detail-vals{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+  .badge{padding:4px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;}
+  .badge.green{background:var(--green-bg);color:var(--green);}
+  .badge.amber{background:var(--amber-bg);color:var(--amber);}
+  .badge.red{background:var(--red-bg);color:var(--red);}
+  .badge.blue{background:var(--blue-bg);color:var(--blue);}
+  .badge.none{background:#e5e7eb;color:var(--muted);}
+  .detail-head{font-size:13px;color:var(--muted);margin:16px 16px 8px;text-transform:uppercase;letter-spacing:.5px;}
 </style>
 </head>
 <body>
 
-<!-- ============ ACCUEIL ============ -->
+<!-- ===== ACCUEIL / JOUR ===== -->
 <div id="home" class="screen">
   <header>
     <div class="header-top">
-      <div class="title-zone">
+      <div style="min-width:0;">
         <div class="app-name">Pointage</div>
-        <div class="big-date" id="bigDate"></div>
+        <div class="datenav">
+          <button class="nav-arrow" onclick="changeDay(-1)">‹</button>
+          <div class="big-date" id="bigDate"></div>
+          <button class="nav-arrow" onclick="changeDay(1)">›</button>
+        </div>
+        <button class="today-btn" id="todayBtn" onclick="goToday()" style="display:none;">Revenir à aujourd'hui</button>
       </div>
       <div class="btn-stack">
         <button class="icon-btn" onclick="showHistory()" title="Historique">🗓</button>
@@ -157,313 +161,404 @@
       </div>
     </div>
   </header>
-  <div class="summary" id="summary"></div>
   <main id="list"></main>
 </div>
 
-<!-- ============ RÉGLAGES ============ -->
+<!-- ===== RÉGLAGES (salariés) ===== -->
 <div id="settings" class="screen">
-  <div class="sub-head">
-    <button class="icon-btn" onclick="showHome()">‹</button>
-    <h2>Les salariés</h2>
-  </div>
+  <div class="sub-head"><button class="icon-btn" onclick="showHome()">‹</button><h2>Les salariés</h2></div>
   <div class="settings-list" id="empList"></div>
   <div class="add-row">
     <input id="newEmp" type="text" placeholder="Nom du salarié" autocomplete="off">
     <button class="add-btn" onclick="addEmp()">+</button>
   </div>
-  <p class="hint">Touche un nom pour le modifier. Les pointages déjà enregistrés ne sont pas effacés si tu supprimes quelqu'un.</p>
+  <p class="hint">Touche « Horaires » pour régler la semaine type d'un salarié (entrée une seule fois, elle se répète chaque semaine).</p>
 </div>
 
-<!-- ============ HISTORIQUE ============ -->
+<!-- ===== ÉDITEUR HORAIRES (trame hebdo) ===== -->
+<div id="template" class="screen">
+  <div class="sub-head"><button class="icon-btn" onclick="showSettings()">‹</button><h2 id="tplTitle">Horaires</h2></div>
+  <div class="preset">
+    <div class="row">
+      <span class="hint2">Remplissage rapide :</span>
+      <input type="time" id="presetArr" value="08:00"> <span class="tpl-day"><span class="arrow">→</span></span>
+      <input type="time" id="presetDep" value="17:00">
+    </div>
+    <div class="row">
+      <button class="pbtn" onclick="applyPreset([1,2,3,4,5])">Appliquer Lun→Ven</button>
+      <button class="pbtn" onclick="applyPreset([1,2,3,4,5,6,0])">Tous les jours</button>
+    </div>
+  </div>
+  <div id="tplDays"></div>
+  <p class="hint">Décoche un jour pour « repos ». Tu peux mettre une heure différente chaque jour.</p>
+</div>
+
+<!-- ===== EXCEPTION (horaire d'un jour précis) ===== -->
+<div id="override" class="screen">
+  <div class="sub-head"><button class="icon-btn" onclick="showHome()">‹</button><h2>Horaire exceptionnel</h2></div>
+  <p class="hint" id="ovSub" style="text-align:left;padding:14px 16px 0;"></p>
+  <div class="ov-card" id="ovCard"></div>
+  <div class="ov-actions">
+    <button class="ov-reset" onclick="clearOverride()">Rétablir l'habituel</button>
+    <button class="ov-save" onclick="saveOverride()">Valider pour ce jour</button>
+  </div>
+  <p class="hint">« Valider » ne change que ce jour-là. La semaine type n'est pas modifiée.</p>
+</div>
+
+<!-- ===== HISTORIQUE ===== -->
 <div id="history" class="screen">
-  <div class="sub-head">
-    <button class="icon-btn" onclick="showHome()">‹</button>
-    <h2>Historique</h2>
-  </div>
-  <div class="toolbar">
-    <button class="btn-export" onclick="exportCSV()">⬇️ Exporter en Excel (CSV)</button>
-  </div>
+  <div class="sub-head"><button class="icon-btn" onclick="showHome()">‹</button><h2>Historique</h2></div>
+  <div class="toolbar"><button class="btn-export" onclick="exportCSV()">⬇️ Exporter en Excel (CSV)</button></div>
   <div id="histList"></div>
   <p class="hint" id="histHint"></p>
 </div>
 
-<!-- ============ DÉTAIL D'UN JOUR ============ -->
+<!-- ===== DÉTAIL D'UN JOUR ===== -->
 <div id="detail" class="screen">
-  <div class="sub-head">
-    <button class="icon-btn" onclick="showHistory()">‹</button>
-    <h2 id="detailTitle">Détail</h2>
-  </div>
+  <div class="sub-head"><button class="icon-btn" onclick="showHistory()">‹</button><h2 id="detailTitle">Détail</h2></div>
   <div id="detailBody"></div>
 </div>
 
 <script>
 /* =========================================================
-   Stockage local (sur le téléphone)
-   - employees : [{ id, name }]
-   - records   : { "AAAA-MM-JJ": { empId: { matin, soir, heure } } }
-       matin : "" | "present" | "retard" | "absent"
-       soir  : "" | "heure" | "avance" | "retard"   (parti à l'heure / en avance / en retard)
-       heure : "" | "HH:MM"
+   STOCKAGE LOCAL (sur le téléphone)
+   - employees : [{id,name}]
+   - templates : { empId: { 0..6: {work,arr,dep} } }   (0=Dim .. 6=Sam, getDay())
+   - overrides : { "AAAA-MM-JJ": { empId: {work,arr,dep} } }  exceptions par date
+   - records   : { "AAAA-MM-JJ": { empId: {arrStatus,arrTime,depStatus,depTime} } }
    ========================================================= */
-const STORE_EMP = "pointage_employees";
-const STORE_REC = "pointage_records";
-const STORE_SEED = "pointage_seeded";
+const K_EMP="pointage_employees", K_TPL="pointage_templates", K_OVR="pointage_overrides", K_REC="pointage_records", K_SEED="pointage_seeded";
 
-const DEFAULT_EMPLOYEES = [
-  "Mathieu Garnier",
-  "Karim Benali",
-  "David Lefèbvre",
-  "Thomas Moreau",
-  "Sofiane Andrieu",
-];
+const JOURS=["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"];
+const JOURS_C=["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+const ORDRE=[1,2,3,4,5,6,0]; // lundi d'abord
+const DEFAULT_EMP=["Mathieu Garnier","Karim Benali","David Lefèbvre","Thomas Moreau","Sofiane Andrieu"];
 
-let employees = load(STORE_EMP, null);
-let records   = load(STORE_REC, {});
+const ARR_LABEL={present:"Présent",retard:"En retard",absent:"Absent"};
+const DEP_LABEL={parti:"Parti",avance:"Parti en avance",retard:"Parti en retard"};
+const ARR_COLOR={present:"green",retard:"amber",absent:"red"};
+const DEP_COLOR={parti:"green",avance:"blue",retard:"amber"};
 
-// Au tout premier lancement : on crée 5 salariés de test
-if (employees === null) {
-  if (!localStorage.getItem(STORE_SEED)) {
-    employees = DEFAULT_EMPLOYEES.map(n => ({ id: uid(), name: n }));
-    localStorage.setItem(STORE_SEED, "1");
-  } else {
-    employees = [];
-  }
-  save();
+let employees=load(K_EMP,null);
+let templates=load(K_TPL,{});
+let overrides=load(K_OVR,{});
+let records  =load(K_REC,{});
+
+let viewDate=startOfToday();
+let currentEmp=null; // pour l'éditeur d'horaires
+
+/* premier lancement : 5 salariés + trame Lun-Ven 8h-17h */
+if(employees===null){
+  if(!localStorage.getItem(K_SEED)){
+    employees=DEFAULT_EMP.map(n=>({id:uid(),name:n}));
+    localStorage.setItem(K_SEED,"1");
+  } else { employees=[]; }
 }
+employees.forEach(e=>ensureTemplate(e.id));
+saveAll();
 
-function load(key, fallback) {
-  try { const v = JSON.parse(localStorage.getItem(key)); return v ?? fallback; }
-  catch { return fallback; }
+function load(k,f){ try{ const v=JSON.parse(localStorage.getItem(k)); return v??f; }catch{ return f; } }
+function saveAll(){
+  localStorage.setItem(K_EMP,JSON.stringify(employees));
+  localStorage.setItem(K_TPL,JSON.stringify(templates));
+  localStorage.setItem(K_OVR,JSON.stringify(overrides));
+  localStorage.setItem(K_REC,JSON.stringify(records));
 }
-function save() {
-  localStorage.setItem(STORE_EMP, JSON.stringify(employees));
-  localStorage.setItem(STORE_REC, JSON.stringify(records));
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+function defaultTemplate(){
+  const t={}; for(let d=0;d<7;d++) t[d]={work:false,arr:"08:00",dep:"17:00"};
+  [1,2,3,4,5].forEach(d=>t[d].work=true); return t;
 }
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function ensureTemplate(id){
+  if(!templates[id]) templates[id]=defaultTemplate();
+  for(let d=0;d<7;d++) if(!templates[id][d]) templates[id][d]={work:false,arr:"08:00",dep:"17:00"};
+}
 
 /* ---- Dates ---- */
-function todayKey() {
-  const d = new Date();
-  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
-}
-function frDate(key) {
-  const [y,m,d] = key.split("-").map(Number);
-  return new Date(y, m-1, d).toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
-}
+function startOfToday(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
+function key(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function parseKey(k){ const [y,m,d]=k.split("-").map(Number); return new Date(y,m-1,d); }
+function frDate(d){ return d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}); }
+function isToday(d){ return key(d)===key(startOfToday()); }
+function toMin(t){ if(!t||t.indexOf(":")<0) return null; const [h,m]=t.split(":").map(Number); return h*60+m; }
 
-/* ---- Accès au pointage d'un salarié pour un jour ---- */
-function entry(dateKey, empId) {
-  if (!records[dateKey]) records[dateKey] = {};
-  if (!records[dateKey][empId]) records[dateKey][empId] = { matin:"", soir:"", heure:"" };
+/* ---- Horaire prévu (exception sinon trame) ---- */
+function planned(dateKey,empId){
+  const ov=overrides[dateKey] && overrides[dateKey][empId];
+  if(ov) return ov;
+  const wd=parseKey(dateKey).getDay();
+  return templates[empId] ? templates[empId][wd] : {work:false,arr:"",dep:""};
+}
+function recEntry(dateKey,empId){
+  if(!records[dateKey]) records[dateKey]={};
+  if(!records[dateKey][empId]) records[dateKey][empId]={arrStatus:"",arrTime:"",depStatus:"",depTime:""};
   return records[dateKey][empId];
 }
 
-/* ---- Libellés & couleurs ---- */
-const MATIN_OPTS = [
-  { v:"",        label:"—",        cls:"" },
-  { v:"present", label:"Présent",  cls:"v-green" },
-  { v:"retard",  label:"Retard",   cls:"v-amber" },
-  { v:"absent",  label:"Absent",   cls:"v-red" },
-];
-const SOIR_OPTS = [
-  { v:"",       label:"—",                cls:"" },
-  { v:"heure",  label:"Parti à l'heure",  cls:"v-green" },
-  { v:"avance", label:"Parti en avance",  cls:"v-blue" },
-  { v:"retard", label:"Parti en retard",  cls:"v-amber" },
-];
-function optClass(opts, val) { const o = opts.find(x => x.v === val); return o ? o.cls : ""; }
-function optLabel(opts, val) { const o = opts.find(x => x.v === val); return o ? o.label : "—"; }
-const badgeColor = { "v-green":"green", "v-amber":"amber", "v-red":"red", "v-blue":"blue", "":"none" };
-
 /* =========================================================
-   ÉCRAN ACCUEIL
+   ÉCRAN DU JOUR
    ========================================================= */
-function setMatin(empId, val) { entry(todayKey(), empId).matin = val; save(); renderHome(); }
-function setSoir(empId, val)  { entry(todayKey(), empId).soir  = val; save(); renderHome(); }
-function setHeure(empId, val) { entry(todayKey(), empId).heure = val; save(); updateSoirDot(empId); }
+function changeDay(delta){ viewDate.setDate(viewDate.getDate()+delta); renderHome(); }
+function goToday(){ viewDate=startOfToday(); renderHome(); }
 
-function updateSoirDot(empId) {
-  const e = entry(todayKey(), empId);
-  const dot = document.querySelector('.dot-soir[data-id="'+empId+'"]');
-  if (dot) dot.classList.toggle("on", !!(e.soir || e.heure));
+function pendingAction(dk,empId){
+  const en=recEntry(dk,empId);
+  if(!en.arrStatus) return {type:"arr"};
+  if(en.arrStatus==="absent") return null;
+  if(!en.depStatus) return {type:"dep"};
+  return null;
 }
 
-function renderHome() {
-  document.getElementById("bigDate").textContent = frDate(todayKey());
-  const list = document.getElementById("list");
-  const summary = document.getElementById("summary");
+function renderHome(){
+  const dk=key(viewDate);
+  document.getElementById("bigDate").textContent=frDate(viewDate);
+  document.getElementById("todayBtn").style.display=isToday(viewDate)?"none":"inline-block";
+  const list=document.getElementById("list");
 
-  if (employees.length === 0) {
-    summary.innerHTML = "";
-    list.innerHTML = `
-      <div class="empty">
-        <p>Aucun salarié pour l'instant.<br>Ajoute ton équipe pour commencer à pointer.</p>
-        <button class="btn-primary" onclick="showSettings()">＋ Ajouter les salariés</button>
-      </div>`;
+  if(employees.length===0){
+    list.innerHTML=`<div class="empty"><p>Aucun salarié pour l'instant.<br>Ajoute ton équipe pour commencer.</p>
+      <button class="btn-primary" onclick="showSettings()">＋ Ajouter les salariés</button></div>`;
     return;
   }
 
-  // Résumé du matin
-  let nP=0,nR=0,nA=0,nU=0;
-  employees.forEach(e => {
-    const m = entry(todayKey(), e.id).matin;
-    if (m==="present") nP++; else if (m==="retard") nR++; else if (m==="absent") nA++; else nU++;
-  });
-  summary.innerHTML =
-    `<span class="chip g">✓ ${nP} présents</span>` +
-    `<span class="chip am">⏱ ${nR} retard</span>` +
-    `<span class="chip r">✕ ${nA} absents</span>` +
-    (nU ? `<span class="chip u">— ${nU} à pointer</span>` : "");
+  // qui travaille ce jour-là ?
+  const working=[], repos=[];
+  employees.forEach(e=>{ (planned(dk,e.id).work?working:repos).push(e); });
 
-  list.innerHTML = employees.map(e => {
-    const en = entry(todayKey(), e.id);
-    const matinSel = `
-      <select class="${optClass(MATIN_OPTS, en.matin)}" onchange="setMatin('${e.id}', this.value)">
-        ${MATIN_OPTS.map(o => `<option value="${o.v}" ${o.v===en.matin?"selected":""}>${o.label}</option>`).join("")}
-      </select>`;
-    const soirSel = `
-      <select class="${optClass(SOIR_OPTS, en.soir)}" onchange="setSoir('${e.id}', this.value)">
-        ${SOIR_OPTS.map(o => `<option value="${o.v}" ${o.v===en.soir?"selected":""}>${o.label}</option>`).join("")}
-      </select>`;
-    const heureInput = `<input type="time" value="${en.heure||""}" onchange="setHeure('${e.id}', this.value)">`;
-    const matinOn = !!en.matin;
-    const soirOn = !!(en.soir || en.heure);
-    return `
-      <div class="person">
-        <div class="name">${escapeHtml(e.name)}</div>
-        <div class="cols">
-          <div class="col">
-            <div class="col-label"><span class="dot ${matinOn?"on":""}"></span>Matin</div>
-            ${matinSel}
-          </div>
-          <div class="col">
-            <div class="col-label"><span class="dot dot-soir ${soirOn?"on":""}" data-id="${e.id}"></span>Soir</div>
-            ${soirSel}
-            ${heureInput}
-          </div>
-        </div>
-      </div>`;
-  }).join("");
+  let html="";
+  if(working.length===0){
+    html+=`<div class="empty"><p>Personne de prévu ${isToday(viewDate)?"aujourd'hui":"ce jour"}.</p></div>`;
+  } else if(isToday(viewDate)){
+    // sections : à pointer maintenant / à venir / fait
+    const now=new Date().getHours()*60+new Date().getMinutes();
+    const grp={now:[],soon:[],done:[]};
+    working.forEach(e=>{
+      const pa=pendingAction(dk,e.id);
+      if(!pa){ grp.done.push({e}); return; }
+      const p=planned(dk,e.id);
+      const t=toMin(pa.type==="arr"?p.arr:p.dep);
+      if(t===null || t<=now+15) grp.now.push({e,t:t??0}); else grp.soon.push({e,t});
+    });
+    grp.now.sort((a,b)=>a.t-b.t); grp.soon.sort((a,b)=>a.t-b.t);
+    if(grp.now.length) html+=`<div class="section-title now"><span class="pulse"></span>À pointer maintenant</div>`+grp.now.map(x=>card(dk,x.e,true)).join("");
+    if(grp.soon.length) html+=`<div class="section-title">⏳ Plus tard aujourd'hui</div>`+grp.soon.map(x=>card(dk,x.e,false)).join("");
+    if(grp.done.length) html+=`<div class="section-title">✓ Terminé</div>`+grp.done.map(x=>card(dk,x.e,false)).join("");
+  } else {
+    html+=`<div class="section-title">Prévus ce jour</div>`+working.map(e=>card(dk,e,false)).join("");
+  }
+
+  if(repos.length){
+    html+=`<div class="section-title">😴 Repos</div><div class="repos">`+repos.map(e=>`<b>${escapeHtml(e.name)}</b>`).join(" · ")+`</div>`;
+  }
+  list.innerHTML=html;
 }
 
-/* =========================================================
-   ÉCRAN RÉGLAGES
-   ========================================================= */
-function renderSettings() {
-  const c = document.getElementById("empList");
-  if (employees.length === 0) {
-    c.innerHTML = `<p class="hint">La liste est vide. Ajoute un premier salarié ci-dessous.</p>`;
-    return;
+function card(dk,e,isNow){
+  const p=planned(dk,e.id), en=recEntry(dk,e.id);
+  const arrBlock=`
+    <div class="slot">
+      <div class="slot-head"><span class="lbl">Arrivée</span><span class="plan ${p.arr?"":"none"}">${p.arr||"—"}</span></div>
+      <div class="qbtns">
+        <button class="${en.arrStatus==="present"?"sel green":""}" onclick="setArr('${e.id}','present')">✓ Arrivé</button>
+        <button class="${en.arrStatus==="retard"?"sel amber":""}" onclick="setArr('${e.id}','retard')">Retard</button>
+        <button class="${en.arrStatus==="absent"?"sel red":""}" onclick="setArr('${e.id}','absent')">Absent</button>
+      </div>
+      ${en.arrStatus==="present"?`<div class="slot-foot ok">✓ Pointé à ${en.arrTime||p.arr||"—"}</div>`:""}
+      ${en.arrStatus==="retard"?`<div class="slot-foot"><label>Arrivé à</label><input type="time" value="${en.arrTime||p.arr||""}" onchange="setArrTime('${e.id}',this.value)"></div>`:""}
+    </div>`;
+  const depBlock = en.arrStatus==="absent" ? "" : `
+    <div class="slot">
+      <div class="slot-head"><span class="lbl">Sortie</span><span class="plan ${p.dep?"":"none"}">${p.dep||"—"}</span></div>
+      <div class="qbtns">
+        <button class="${en.depStatus==="parti"?"sel green":""}" onclick="setDep('${e.id}','parti')">✓ Parti</button>
+        <button class="${en.depStatus==="avance"?"sel blue":""}" onclick="setDep('${e.id}','avance')">Avance</button>
+        <button class="${en.depStatus==="retard"?"sel amber":""}" onclick="setDep('${e.id}','retard')">Retard</button>
+      </div>
+      ${en.depStatus==="parti"?`<div class="slot-foot ok">✓ Pointé à ${en.depTime||p.dep||"—"}</div>`:""}
+      ${(en.depStatus==="avance"||en.depStatus==="retard")?`<div class="slot-foot"><label>Parti à</label><input type="time" value="${en.depTime||p.dep||""}" onchange="setDepTime('${e.id}',this.value)"></div>`:""}
+    </div>`;
+  return `<div class="person ${isNow?"now":""}">
+    <div class="p-head"><span class="p-name">${escapeHtml(e.name)}</span>
+      <button class="edit-day" onclick="openOverride('${e.id}')">✎ horaire du jour</button></div>
+    ${arrBlock}${depBlock}</div>`;
+}
+
+function setArr(id,status){
+  const dk=key(viewDate), en=recEntry(dk,id), p=planned(dk,id);
+  if(en.arrStatus===status){ en.arrStatus=""; en.arrTime=""; }
+  else{
+    en.arrStatus=status;
+    if(status==="present") en.arrTime=p.arr||"";
+    else if(status==="absent"){ en.arrTime=""; en.depStatus=""; en.depTime=""; }
+    else if(status==="retard") en.arrTime=en.arrTime||p.arr||"";
   }
-  c.innerHTML = employees.map(e => `
+  saveAll(); renderHome();
+}
+function setArrTime(id,v){ recEntry(key(viewDate),id).arrTime=v; saveAll(); }
+function setDep(id,status){
+  const dk=key(viewDate), en=recEntry(dk,id), p=planned(dk,id);
+  if(en.depStatus===status){ en.depStatus=""; en.depTime=""; }
+  else{
+    en.depStatus=status;
+    if(status==="parti") en.depTime=p.dep||"";
+    else en.depTime=en.depTime||p.dep||"";
+  }
+  saveAll(); renderHome();
+}
+function setDepTime(id,v){ recEntry(key(viewDate),id).depTime=v; saveAll(); }
+
+/* =========================================================
+   RÉGLAGES (liste salariés)
+   ========================================================= */
+function renderSettings(){
+  const c=document.getElementById("empList");
+  if(employees.length===0){ c.innerHTML=`<p class="hint">La liste est vide. Ajoute un premier salarié ci-dessous.</p>`; return; }
+  c.innerHTML=employees.map(e=>`
     <div class="emp-row">
-      <input type="text" value="${escapeAttr(e.name)}" onchange="renameEmp('${e.id}', this.value)">
+      <input class="nm" type="text" value="${escapeAttr(e.name)}" onchange="renameEmp('${e.id}',this.value)">
+      <button class="hours-btn" onclick="openTemplate('${e.id}')">🕗 Horaires</button>
       <button class="del-btn" onclick="delEmp('${e.id}')">🗑</button>
     </div>`).join("");
 }
-function addEmp() {
-  const input = document.getElementById("newEmp");
-  const name = input.value.trim();
-  if (!name) return;
-  employees.push({ id: uid(), name });
-  save(); input.value = ""; renderSettings();
+function addEmp(){
+  const i=document.getElementById("newEmp"); const n=i.value.trim(); if(!n) return;
+  const e={id:uid(),name:n}; employees.push(e); ensureTemplate(e.id); saveAll(); i.value=""; renderSettings();
 }
-function renameEmp(id, name) { const e = employees.find(x => x.id === id); if (e) { e.name = name.trim() || e.name; save(); } }
-function delEmp(id) {
-  const e = employees.find(x => x.id === id);
-  if (!confirm(`Supprimer ${e ? e.name : "ce salarié"} de la liste ?`)) return;
-  employees = employees.filter(x => x.id !== id);
-  save(); renderSettings();
+function renameEmp(id,n){ const e=employees.find(x=>x.id===id); if(e){ e.name=n.trim()||e.name; saveAll(); } }
+function delEmp(id){
+  const e=employees.find(x=>x.id===id);
+  if(!confirm(`Supprimer ${e?e.name:"ce salarié"} ?`)) return;
+  employees=employees.filter(x=>x.id!==id); saveAll(); renderSettings();
 }
 
 /* =========================================================
-   ÉCRAN HISTORIQUE
+   ÉDITEUR HORAIRES (trame hebdo)
    ========================================================= */
-function renderHistory() {
-  const keys = Object.keys(records).sort().reverse();
-  const c = document.getElementById("histList");
-  const hint = document.getElementById("histHint");
-  if (keys.length === 0) { c.innerHTML = ""; hint.textContent = "Aucune journée enregistrée pour l'instant."; return; }
-  hint.textContent = "Touche une journée pour voir le détail.";
-  c.innerHTML = keys.map(k => {
-    let nP=0,nR=0,nA=0;
-    employees.forEach(e => {
-      const m = (records[k][e.id]||{}).matin;
-      if (m==="present") nP++; else if (m==="retard") nR++; else if (m==="absent") nA++;
-    });
-    return `
-      <div class="hist-day" onclick="showDetail('${k}')">
-        <div>
-          <div class="d">${frDate(k)}</div>
-          <div class="mini">
-            <span class="chip g">✓ ${nP}</span>
-            <span class="chip am">⏱ ${nR}</span>
-            <span class="chip r">✕ ${nA}</span>
-          </div>
-        </div>
-        <div style="color:var(--muted); font-size:22px;">›</div>
-      </div>`;
+function openTemplate(id){ currentEmp=id; ensureTemplate(id); renderTemplate(); switchScreen("template"); }
+function renderTemplate(){
+  const e=employees.find(x=>x.id===currentEmp); if(!e) return;
+  document.getElementById("tplTitle").textContent="Horaires — "+e.name;
+  const t=templates[currentEmp];
+  document.getElementById("tplDays").innerHTML=ORDRE.map(d=>{
+    const day=t[d];
+    return `<div class="tpl-day ${day.work?"":"off"}">
+      <label class="sw"><input type="checkbox" ${day.work?"checked":""} onchange="setTplWork(${d},this.checked)"><span class="slider"></span></label>
+      <span class="dname">${JOURS_C[d]}</span>
+      ${day.work?`<span class="times">
+          <input type="time" value="${day.arr||""}" onchange="setTplArr(${d},this.value)">
+          <span class="arrow">→</span>
+          <input type="time" value="${day.dep||""}" onchange="setTplDep(${d},this.value)">
+        </span>`:`<span class="reposlbl">repos</span>`}
+    </div>`;
   }).join("");
 }
+function setTplWork(d,on){ templates[currentEmp][d].work=on; saveAll(); renderTemplate(); }
+function setTplArr(d,v){ templates[currentEmp][d].arr=v; saveAll(); }
+function setTplDep(d,v){ templates[currentEmp][d].dep=v; saveAll(); }
+function applyPreset(days){
+  const a=document.getElementById("presetArr").value, b=document.getElementById("presetDep").value;
+  days.forEach(d=>{ templates[currentEmp][d]={work:true,arr:a,dep:b}; });
+  saveAll(); renderTemplate();
+}
 
-function showDetail(key) {
-  document.getElementById("detailTitle").textContent = frDate(key);
-  const dayRec = records[key] || {};
-  const body = document.getElementById("detailBody");
-  body.innerHTML = `<div class="detail-head">Pointages de la journée</div>` + employees.map(e => {
-    const en = dayRec[e.id] || { matin:"", soir:"", heure:"" };
-    const mCls = badgeColor[optClass(MATIN_OPTS, en.matin)];
-    const sCls = badgeColor[optClass(SOIR_OPTS, en.soir)];
-    const heureTxt = en.heure ? `<span class="badge blue">🕐 ${en.heure}</span>` : "";
-    return `
-      <div class="detail-row">
-        <span class="dn">${escapeHtml(e.name)}</span>
-        <span class="detail-vals">
-          <span class="badge ${mCls}">${optLabel(MATIN_OPTS, en.matin)}</span>
-          <span class="badge ${sCls}">${optLabel(SOIR_OPTS, en.soir)}</span>
-          ${heureTxt}
-        </span>
-      </div>`;
+/* =========================================================
+   EXCEPTION (horaire d'un jour précis)
+   ========================================================= */
+let ovEmp=null;
+function openOverride(id){
+  ovEmp=id;
+  const dk=key(viewDate), e=employees.find(x=>x.id===id), p=planned(dk,id);
+  document.getElementById("ovSub").innerHTML=`<b>${escapeHtml(e.name)}</b> — ${frDate(viewDate)}`;
+  const work=p.work, arr=p.arr||"08:00", dep=p.dep||"17:00";
+  document.getElementById("ovCard").innerHTML=`
+    <div class="line"><span>Travaille ce jour</span>
+      <label class="sw"><input type="checkbox" id="ovWork" ${work?"checked":""} onchange="ovToggle(this.checked)"><span class="slider"></span></label></div>
+    <div class="line" id="ovTimes" style="${work?"":"opacity:.35;pointer-events:none;"}">
+      <span>Horaire</span>
+      <span><input type="time" id="ovArr" value="${arr}"> → <input type="time" id="ovDep" value="${dep}"></span>
+    </div>`;
+  switchScreen("override");
+}
+function ovToggle(on){ document.getElementById("ovTimes").style.cssText=on?"":"opacity:.35;pointer-events:none;"; }
+function saveOverride(){
+  const dk=key(viewDate);
+  const work=document.getElementById("ovWork").checked;
+  const arr=document.getElementById("ovArr").value, dep=document.getElementById("ovDep").value;
+  if(!overrides[dk]) overrides[dk]={};
+  overrides[dk][ovEmp]={work,arr:work?arr:"",dep:work?dep:""};
+  saveAll(); showHome();
+}
+function clearOverride(){
+  const dk=key(viewDate);
+  if(overrides[dk]){ delete overrides[dk][ovEmp]; if(!Object.keys(overrides[dk]).length) delete overrides[dk]; }
+  saveAll(); showHome();
+}
+
+/* =========================================================
+   HISTORIQUE
+   ========================================================= */
+function renderHistory(){
+  const keys=Object.keys(records).sort().reverse();
+  const c=document.getElementById("histList"), hint=document.getElementById("histHint");
+  // ne garder que les jours réellement pointés
+  const real=keys.filter(k=>Object.values(records[k]).some(en=>en.arrStatus||en.depStatus));
+  if(real.length===0){ c.innerHTML=""; hint.textContent="Aucune journée pointée pour l'instant."; return; }
+  hint.textContent="Touche une journée pour voir le détail.";
+  c.innerHTML=real.map(k=>{
+    let nP=0,nR=0,nA=0;
+    Object.values(records[k]).forEach(en=>{ if(en.arrStatus==="present")nP++; else if(en.arrStatus==="retard")nR++; else if(en.arrStatus==="absent")nA++; });
+    return `<div class="hist-day" onclick="showDetail('${k}')"><div>
+      <div class="d">${frDate(parseKey(k))}</div>
+      <div class="mini"><span class="chip g">✓ ${nP}</span><span class="chip am">⏱ ${nR}</span><span class="chip r">✕ ${nA}</span></div>
+      </div><div style="color:var(--muted);font-size:22px;">›</div></div>`;
+  }).join("");
+}
+function showDetail(k){
+  document.getElementById("detailTitle").textContent=frDate(parseKey(k));
+  const day=records[k]||{};
+  document.getElementById("detailBody").innerHTML=`<div class="detail-head">Pointages de la journée</div>`+employees.map(e=>{
+    const en=day[e.id]||{arrStatus:"",depStatus:"",arrTime:"",depTime:""};
+    const p=planned(k,e.id);
+    const aB=en.arrStatus?`<span class="badge ${ARR_COLOR[en.arrStatus]}">${ARR_LABEL[en.arrStatus]}${en.arrStatus!=="absent"&&en.arrTime?" "+en.arrTime:""}</span>`:`<span class="badge none">—</span>`;
+    const dB=(en.arrStatus==="absent")?"":(en.depStatus?`<span class="badge ${DEP_COLOR[en.depStatus]}">${DEP_LABEL[en.depStatus]}${en.depTime?" "+en.depTime:""}</span>`:`<span class="badge none">—</span>`);
+    return `<div class="detail-row"><span class="dn">${escapeHtml(e.name)}</span><span class="detail-vals">${aB}${dB}</span></div>`;
   }).join("");
   switchScreen("detail");
 }
 
 /* ---- Export CSV ---- */
-function exportCSV() {
-  const keys = Object.keys(records).sort();
-  if (keys.length === 0) { alert("Rien à exporter pour l'instant."); return; }
-  let rows = [["Date","Salarié","Matin","Soir","Heure soir"]];
-  keys.forEach(k => {
-    employees.forEach(e => {
-      const en = records[k][e.id];
-      if (!en) return;
-      if (!en.matin && !en.soir && !en.heure) return;
-      rows.push([k, e.name, optLabel(MATIN_OPTS, en.matin), optLabel(SOIR_OPTS, en.soir), en.heure || ""]);
+function exportCSV(){
+  const keys=Object.keys(records).sort().filter(k=>Object.values(records[k]).some(en=>en.arrStatus||en.depStatus));
+  if(keys.length===0){ alert("Rien à exporter pour l'instant."); return; }
+  let rows=[["Date","Salarié","Arrivée prévue","Arrivée réelle","Statut arrivée","Sortie prévue","Sortie réelle","Statut sortie"]];
+  keys.forEach(k=>{
+    employees.forEach(e=>{
+      const en=records[k][e.id]; if(!en||(!en.arrStatus&&!en.depStatus)) return;
+      const p=planned(k,e.id);
+      rows.push([k,e.name,p.arr||"",en.arrTime||"",en.arrStatus?ARR_LABEL[en.arrStatus]:"",p.dep||"",en.depTime||"",en.depStatus?DEP_LABEL[en.depStatus]:""]);
     });
   });
-  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(";")).join("\r\n");
-  const blob = new Blob(["﻿"+csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = "pointage_" + todayKey() + ".csv";
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\r\n");
+  const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download="pointage_"+key(startOfToday())+".csv";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
 /* =========================================================
    NAVIGATION
    ========================================================= */
-function switchScreen(id) {
-  ["home","settings","history","detail"].forEach(s => document.getElementById(s).classList.toggle("show", s===id));
-  document.getElementById("home").classList.toggle("hide", id!=="home");
+function switchScreen(id){
+  ["home","settings","template","override","history","detail"].forEach(s=>document.getElementById(s).classList.toggle("show",s===id));
+  document.getElementById("home").classList.toggle("hide",id!=="home");
   window.scrollTo(0,0);
 }
-function showHome()     { renderHome();     switchScreen("home"); }
-function showSettings() { renderSettings(); switchScreen("settings"); }
-function showHistory()  { renderHistory();  switchScreen("history"); }
+function showHome(){ renderHome(); switchScreen("home"); }
+function showSettings(){ renderSettings(); switchScreen("settings"); }
+function showHistory(){ renderHistory(); switchScreen("history"); }
 
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s){ return escapeHtml(s); }
 
 renderHome();
