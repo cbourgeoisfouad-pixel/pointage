@@ -184,6 +184,41 @@
   .badge.blue{background:var(--blue-bg);color:var(--blue);}
   .badge.none{background:#e5e7eb;color:var(--muted);}
   .detail-head{font-size:13px;color:var(--muted);margin:16px 16px 8px;text-transform:uppercase;letter-spacing:.5px;}
+
+  /* onglets ordinateur : autoriser le défilement si beaucoup de pages */
+  .desktop-tabs{overflow-x:auto;}
+  .tab{white-space:nowrap;}
+
+  /* ===================== PAGE 2 : PLANNINGS DE LA SEMAINE ===================== */
+  .week-head{display:flex;align-items:center;gap:8px;background:#1f2937;color:#fff;padding:14px 12px;}
+  .week-label{flex:1;text-align:center;font-size:17px;font-weight:800;line-height:1.2;}
+  .week-quick{display:flex;gap:8px;padding:10px 12px 4px;}
+  .week-quick button{flex:1;background:#eef1f4;border:none;border-radius:10px;padding:11px;font-weight:700;color:var(--ink);cursor:pointer;font-size:13px;}
+  .week-quick button:active{background:#e0e4e9;}
+  .week-wrap{overflow-x:auto;padding:8px 12px calc(20px + var(--safe-bottom));-webkit-overflow-scrolling:touch;}
+  table.wk{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;}
+  .wk thead th{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;padding:6px 4px 8px;text-align:center;white-space:nowrap;line-height:1.25;}
+  .wk thead th.today{color:var(--primary);}
+  .wk .name-col{position:sticky;left:0;background:var(--bg);z-index:2;text-align:left;font-weight:700;font-size:13px;padding:4px 10px 4px 2px;min-width:104px;white-space:nowrap;}
+  .wk td .cell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:62px;height:50px;margin:3px;border-radius:9px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:12px;font-weight:700;line-height:1.15;}
+  .wk td .cell .a{color:var(--ink);}
+  .wk td .cell span:last-child{color:var(--muted);}
+  .wk td .cell.repos{color:var(--muted);font-weight:600;background:#f7f8fa;}
+  .wk td .cell.ovr{border-color:var(--blue);background:var(--blue-bg);}
+  .wk td .cell.ovr .a,.wk td .cell.ovr span{color:var(--blue);}
+
+  /* ===================== MENU MODAL ===================== */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;}
+  .modal-overlay.show{opacity:1;pointer-events:auto;}
+  .modal{position:fixed;z-index:90;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);opacity:0;pointer-events:none;
+    width:90%;max-width:420px;background:#fff;border-radius:16px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.3);transition:.2s;}
+  .modal.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1);}
+  .modal-title{font-size:18px;font-weight:800;}
+  .modal-sub{color:var(--muted);font-size:14px;margin:3px 0 12px;}
+  .modal .ov-card{margin:0;}
+  .modal-actions{display:flex;gap:8px;margin-top:14px;}
+  .modal-actions button{flex:1;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;}
+  .modal-note{color:var(--muted);font-size:12px;text-align:center;margin-top:10px;}
 </style>
 </head>
 <body>
@@ -253,17 +288,6 @@
     <p class="hint">Décoche un jour pour « repos ». Tu peux mettre une heure différente chaque jour.</p>
   </div>
 
-  <div id="override" class="screen">
-    <div class="sub-head"><button class="icon-btn" onclick="showHome()">‹</button><h2>Horaire exceptionnel</h2></div>
-    <p class="hint" id="ovSub" style="text-align:left;padding:14px 16px 0;"></p>
-    <div class="ov-card" id="ovCard"></div>
-    <div class="ov-actions">
-      <button class="ov-reset" onclick="clearOverride()">Rétablir l'habituel</button>
-      <button class="ov-save" onclick="saveOverride()">Valider pour ce jour</button>
-    </div>
-    <p class="hint">« Valider » ne change que ce jour-là. La semaine type n'est pas modifiée.</p>
-  </div>
-
   <div id="history" class="screen">
     <div class="sub-head"><button class="icon-btn" onclick="showHome()">‹</button><h2>Historique</h2></div>
     <div class="toolbar"><button class="btn-export" onclick="exportCSV()">⬇️ Exporter en Excel (CSV)</button></div>
@@ -279,16 +303,41 @@
 </section>
 
 <!-- ===================== PAGES 2 À 5 (VIDES) ===================== -->
-<section class="page" id="page2"><div class="page-empty"><div class="pe-num">Page 2</div><p>Page vide — on la construira plus tard.</p></div></section>
+<section class="page" id="page2">
+  <div class="week-head">
+    <button class="nav-arrow" onclick="changeWeek(-1)">‹</button>
+    <div class="week-label" id="weekLabel"></div>
+    <button class="nav-arrow" onclick="changeWeek(1)">›</button>
+  </div>
+  <div class="week-quick">
+    <button onclick="weekTo(0)">Cette semaine</button>
+    <button onclick="weekTo(1)">Semaine prochaine</button>
+  </div>
+  <div class="week-wrap" id="weekWrap"></div>
+  <p class="hint">Touche une case pour fixer ou modifier l'horaire d'un jour (utile pour préparer la semaine suivante). Par défaut, c'est la semaine type qui s'affiche ; les cases modifiées apparaissent en bleu. Pour changer les horaires habituels qui se répètent, va dans « Pointage quotidien » → ⚙️ → 🕗 Horaires.</p>
+</section>
 <section class="page" id="page3"><div class="page-empty"><div class="pe-num">Page 3</div><p>Page vide — on la construira plus tard.</p></div></section>
 <section class="page" id="page4"><div class="page-empty"><div class="pe-num">Page 4</div><p>Page vide — on la construira plus tard.</p></div></section>
 <section class="page" id="page5"><div class="page-empty"><div class="pe-num">Page 5</div><p>Page vide — on la construira plus tard.</p></div></section>
+
+<!-- ===================== MENU ÉDITION HORAIRE (modal) ===================== -->
+<div id="modalOverlay" class="modal-overlay" onclick="closeSchedule()"></div>
+<div id="scheduleModal" class="modal">
+  <div class="modal-title" id="schedTitle">Horaire de ce jour</div>
+  <div class="modal-sub" id="schedSub"></div>
+  <div class="ov-card" id="schedCard"></div>
+  <div class="modal-actions">
+    <button class="ov-reset" onclick="clearSchedule()">Rétablir l'habituel</button>
+    <button class="ov-save" onclick="saveSchedule()">Valider</button>
+  </div>
+  <p class="modal-note">Ne change que ce jour précis. La semaine type n'est pas modifiée.</p>
+</div>
 
 <script>
 /* =========================================================
    NAVIGATION GLOBALE (5 pages)
    ========================================================= */
-const PAGES=["Page 1","Page 2","Page 3","Page 4","Page 5"];
+const PAGES=["Pointage quotidien","Plannings semaine","Page 3","Page 4","Page 5"];
 let currentPage=1;
 
 (function buildNav(){
@@ -305,6 +354,7 @@ function goPage(n){
   document.getElementById("brand").textContent=PAGES[n-1];
   closeDrawer();
   if(n===1) showHome();
+  if(n===2) renderWeek();
   window.scrollTo(0,0);
 }
 function openDrawer(){ document.getElementById("drawer").classList.add("open"); document.getElementById("overlay").classList.add("show"); }
@@ -430,7 +480,7 @@ function card(dk,e,isNow){
     </div>`;
   return `<div class="person ${isNow?"now":""}">
     <div class="p-head"><span class="p-name">${escapeHtml(e.name)}</span>
-      <button class="edit-day" onclick="openOverride('${e.id}')">✎ horaire du jour</button></div>
+      <button class="edit-day" onclick="openSchedule('${e.id}','${dk}')">✎ horaire du jour</button></div>
     ${arrBlock}${depBlock}</div>`;
 }
 
@@ -489,27 +539,58 @@ function setTplArr(d,v){ templates[currentEmp][d].arr=v; saveAll(); }
 function setTplDep(d,v){ templates[currentEmp][d].dep=v; saveAll(); }
 function applyPreset(days){ const a=document.getElementById("presetArr").value,b=document.getElementById("presetDep").value; days.forEach(d=>{ templates[currentEmp][d]={work:true,arr:a,dep:b}; }); saveAll(); renderTemplate(); }
 
-let ovEmp=null;
-function openOverride(id){
-  ovEmp=id; const dk=key(viewDate), e=employees.find(x=>x.id===id), p=planned(dk,id);
-  document.getElementById("ovSub").innerHTML=`<b>${escapeHtml(e.name)}</b> — ${frDate(viewDate)}`;
+/* ----- Menu modal : éditer l'horaire d'un jour précis (Page 1 ET Page 2) ----- */
+let schedEmp=null, schedDate=null;
+function openSchedule(id,dk){
+  schedEmp=id; schedDate=dk;
+  const e=employees.find(x=>x.id===id), p=planned(dk,id);
+  document.getElementById("schedSub").innerHTML=`<b>${escapeHtml(e.name)}</b> — ${frDate(parseKey(dk))}`;
   const work=p.work, arr=p.arr||"08:00", dep=p.dep||"17:00";
-  document.getElementById("ovCard").innerHTML=`
+  document.getElementById("schedCard").innerHTML=`
     <div class="line"><span>Travaille ce jour</span>
-      <label class="sw"><input type="checkbox" id="ovWork" ${work?"checked":""} onchange="ovToggle(this.checked)"><span class="slider"></span></label></div>
-    <div class="line" id="ovTimes" style="${work?"":"opacity:.35;pointer-events:none;"}">
-      <span>Horaire</span><span><input type="time" id="ovArr" value="${arr}"> → <input type="time" id="ovDep" value="${dep}"></span>
+      <label class="sw"><input type="checkbox" id="schedWork" ${work?"checked":""} onchange="schedToggle(this.checked)"><span class="slider"></span></label></div>
+    <div class="line" id="schedTimes" style="${work?"":"opacity:.35;pointer-events:none;"}">
+      <span>Horaire</span><span><input type="time" id="schedArr" value="${arr}"> → <input type="time" id="schedDep" value="${dep}"></span>
     </div>`;
-  switchScreen("override");
+  document.getElementById("modalOverlay").classList.add("show");
+  document.getElementById("scheduleModal").classList.add("show");
 }
-function ovToggle(on){ document.getElementById("ovTimes").style.cssText=on?"":"opacity:.35;pointer-events:none;"; }
-function saveOverride(){
-  const dk=key(viewDate); const work=document.getElementById("ovWork").checked;
-  const arr=document.getElementById("ovArr").value, dep=document.getElementById("ovDep").value;
+function schedToggle(on){ document.getElementById("schedTimes").style.cssText=on?"":"opacity:.35;pointer-events:none;"; }
+function closeSchedule(){ document.getElementById("modalOverlay").classList.remove("show"); document.getElementById("scheduleModal").classList.remove("show"); }
+function afterSchedule(){ closeSchedule(); if(currentPage===2) renderWeek(); else renderHome(); }
+function saveSchedule(){
+  const dk=schedDate, work=document.getElementById("schedWork").checked;
+  const arr=document.getElementById("schedArr").value, dep=document.getElementById("schedDep").value;
   if(!overrides[dk]) overrides[dk]={};
-  overrides[dk][ovEmp]={work,arr:work?arr:"",dep:work?dep:""}; saveAll(); showHome();
+  overrides[dk][schedEmp]={work,arr:work?arr:"",dep:work?dep:""}; saveAll(); afterSchedule();
 }
-function clearOverride(){ const dk=key(viewDate); if(overrides[dk]){ delete overrides[dk][ovEmp]; if(!Object.keys(overrides[dk]).length) delete overrides[dk]; } saveAll(); showHome(); }
+function clearSchedule(){ const dk=schedDate; if(overrides[dk]){ delete overrides[dk][schedEmp]; if(!Object.keys(overrides[dk]).length) delete overrides[dk]; } saveAll(); afterSchedule(); }
+
+/* ----- Page 2 : plannings de la semaine ----- */
+let weekRef=startOfToday();
+function mondayOf(d){ const x=new Date(d); const wd=x.getDay(); x.setDate(x.getDate()+(wd===0?-6:1-wd)); x.setHours(0,0,0,0); return x; }
+function changeWeek(delta){ weekRef.setDate(weekRef.getDate()+delta*7); renderWeek(); }
+function weekTo(n){ weekRef=startOfToday(); weekRef.setDate(weekRef.getDate()+n*7); renderWeek(); }
+function renderWeek(){
+  const ws=mondayOf(weekRef);
+  const days=[]; for(let i=0;i<7;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); days.push(d); }
+  const last=days[6], sameMonth=ws.getMonth()===last.getMonth();
+  const moEl=d=>d.toLocaleDateString("fr-FR",{month:"long"});
+  document.getElementById("weekLabel").textContent="Semaine du "+ws.getDate()+(sameMonth?"":" "+moEl(ws))+" au "+last.getDate()+" "+moEl(last);
+  const tk=key(startOfToday());
+  if(employees.length===0){ document.getElementById("weekWrap").innerHTML=`<div class="empty"><p>Ajoute d'abord des salariés dans « Pointage quotidien » → ⚙️.</p></div>`; return; }
+  let head="<tr><th class='name-col'></th>"+days.map(d=>`<th class="${key(d)===tk?"today":""}">${JOURS_C[d.getDay()]}<br>${d.getDate()}</th>`).join("")+"</tr>";
+  let body=employees.map(e=>{
+    let row=`<td class="name-col">${escapeHtml(e.name)}</td>`;
+    row+=days.map(d=>{
+      const dk=key(d), p=planned(dk,e.id), ovr=overrides[dk]&&overrides[dk][e.id];
+      if(!p.work) return `<td><div class="cell repos ${ovr?"ovr":""}" onclick="openSchedule('${e.id}','${dk}')">Repos</div></td>`;
+      return `<td><div class="cell ${ovr?"ovr":""}" onclick="openSchedule('${e.id}','${dk}')"><span class="a">${p.arr||"—"}</span><span>${p.dep||"—"}</span></div></td>`;
+    }).join("");
+    return "<tr>"+row+"</tr>";
+  }).join("");
+  document.getElementById("weekWrap").innerHTML=`<table class="wk"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+}
 
 function renderHistory(){
   const keys=Object.keys(records).sort().reverse();
@@ -549,7 +630,7 @@ function exportCSV(){
 }
 
 function switchScreen(id){
-  ["home","settings","template","override","history","detail"].forEach(s=>document.getElementById(s).classList.toggle("show",s===id));
+  ["home","settings","template","history","detail"].forEach(s=>document.getElementById(s).classList.toggle("show",s===id));
   document.getElementById("home").classList.toggle("hide",id!=="home");
   window.scrollTo(0,0);
 }
