@@ -552,8 +552,9 @@ function renderHome(){
   list.innerHTML=html;
 }
 
-const RETARD_OPTS=[[30,"30 min"],[60,"1 heure"],[90,"1 h 30"],[120,"2 heures"],[150,"2 h 30"]];
-function retardLabel(min){ const o=RETARD_OPTS.find(x=>x[0]===min); return o?o[1]:(min+" min"); }
+function minLabel(m){ const h=Math.floor(m/60), mm=m%60; if(h===0) return mm+" min"; if(mm===0) return h+(h>1?" heures":" heure"); return h+" h "+mm; }
+const RETARD_OPTS=(()=>{ const a=[]; for(let m=15;m<=300;m+=15) a.push([m,minLabel(m)]); return a; })();
+function retardLabel(min){ const o=RETARD_OPTS.find(x=>x[0]===min); return o?o[1]:minLabel(min); }
 const HSUP_OPTS=[[15,"15 min"],[30,"30 min"],[45,"45 min"],[60,"1 heure"],[75,"1 h 15"],[90,"1 h 30"],[105,"1 h 45"],[120,"2 heures"]];
 function hsupLabel(min){ const o=HSUP_OPTS.find(x=>x[0]===min); return o?o[1]:(min+" min"); }
 const ABS_OPTS=[["conge","Congé"],["injustifiee","Absence injustifiée"]];
@@ -568,7 +569,7 @@ function cardInner(dk,e){
     arrFoot=`<div class="slot-foot retard-pick">
         <label>Retard de</label>
         <select id="retSel-${e.id}">
-          ${RETARD_OPTS.map(([v,l])=>`<option value="${v}" ${(en.retardMin||30)===v?"selected":""}>${l}</option>`).join("")}
+          ${RETARD_OPTS.map(([v,l])=>`<option value="${v}" ${(en.retardMin||15)===v?"selected":""}>${l}</option>`).join("")}
         </select>
         <button class="ret-ok" onclick="okRetard('${e.id}')">OK</button>
         ${en.retardMin>0?`<span class="ret-done">✓ ${retardLabel(en.retardMin)}${en.arrTime?` — arrivé ${en.arrTime}`:""}</span>`:""}
