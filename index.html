@@ -230,6 +230,9 @@
   .fs .sub-head{top:0;padding-top:calc(var(--safe-top) + 12px);}
 
   /* ===================== PAGE 4 : SALARIÉS ===================== */
+  .emp-search{padding:12px 12px 0;}
+  .emp-search input{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-size:16px;color:var(--ink);background:#fff;}
+  .emp-search input:focus{outline:none;border-color:var(--primary);}
   .emp-cards{padding:12px;}
   .emp-card{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
   .emp-main{flex:1;min-width:0;}
@@ -253,6 +256,7 @@
   .form-fields label{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:700;color:var(--muted);}
   .form-fields input{border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:16px;color:var(--ink);font-weight:600;}
   .form-fields input:focus{outline:none;border-color:var(--primary);}
+  .form-error{color:var(--red);font-size:13px;font-weight:700;margin-top:10px;min-height:1px;}
 </style>
 </head>
 <body>
@@ -331,6 +335,7 @@
 </section>
 <section class="page" id="page4">
   <div class="week-head"><div class="week-label">Salariés</div></div>
+  <div class="emp-search"><input id="empSearch" type="search" placeholder="🔍 Rechercher un nom ou un matricule…" oninput="renderEmployees()" autocomplete="off"></div>
   <div id="empCards" class="emp-cards"></div>
   <div class="add-emp-bar"><button class="btn-add-emp" onclick="openEmpForm(null)">＋ Ajouter un salarié</button></div>
 </section>
@@ -377,7 +382,9 @@
     <label>Téléphone<input id="fTel" type="tel" inputmode="tel" autocomplete="off"></label>
     <label>N° de matricule<input id="fMat" type="text" autocomplete="off"></label>
     <label>Heures par semaine (contrat)<input id="fContrat" type="text" inputmode="numeric" autocomplete="off" placeholder="ex. 35"></label>
+    <label>Pause du midi (minutes)<input id="fPause" type="text" inputmode="numeric" autocomplete="off" placeholder="45"></label>
   </div>
+  <div class="form-error" id="empError"></div>
   <div class="modal-actions">
     <button class="ov-reset" onclick="closeEmpForm()">Annuler</button>
     <button class="ov-save" onclick="saveEmpForm()">Enregistrer</button>
@@ -625,18 +632,23 @@ function okHeureSup(id){
 function setDepTime(id,v){ recEntry(key(viewDate),id).depTime=v; saveAll(); }
 
 /* ----- Page 4 : Salariés (fiches) ----- */
+function empPause(e){ return (e.pause!=null && e.pause!=="") ? e.pause : "45"; }
 function empMetaHTML(e){
   return `<div class="emp-meta">
     <span class="mat">🆔 ${e.matricule?escapeHtml(e.matricule):"<i>matricule —</i>"}</span>
     ${e.contrat?`<span>📄 ${escapeHtml(String(e.contrat))} h/sem</span>`:""}
+    <span>🍽 ${escapeHtml(String(empPause(e)))} min</span>
     ${e.tel?`<span>📞 ${escapeHtml(e.tel)}</span>`:""}
   </div>`;
 }
 function renderEmployees(){
   const c=document.getElementById("empCards");
-  const act=employees.filter(e=>!e.archived), arch=employees.filter(e=>e.archived);
+  const norm=s=>String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  const q=norm((document.getElementById("empSearch")?.value||"").trim());
+  const match=e=>!q || norm(empName(e)).includes(q) || norm(e.matricule||"").includes(q);
+  const act=employees.filter(e=>!e.archived && match(e)), arch=employees.filter(e=>e.archived && match(e));
   let html="";
-  if(act.length===0){ html+=`<p class="hint">Aucun salarié actif. Touche « Ajouter un salarié » ci-dessous.</p>`; }
+  if(act.length===0 && !q){ html+=`<p class="hint">Aucun salarié actif. Touche « Ajouter un salarié » ci-dessous.</p>`; }
   else html+=act.map(e=>`
     <div class="emp-card">
       <div class="emp-main"><div class="emp-nom">${escapeHtml(empName(e))}</div>${empMetaHTML(e)}</div>
@@ -657,6 +669,7 @@ function renderEmployees(){
         </div>
       </div>`).join("");
   }
+  if(q && act.length===0 && arch.length===0) html=`<p class="hint">Aucun résultat pour « ${escapeHtml(q)} ».</p>`;
   c.innerHTML=html;
 }
 let empEditId=null;
@@ -669,6 +682,8 @@ function openEmpForm(id){
   document.getElementById("fTel").value=e?(e.tel||""):"";
   document.getElementById("fMat").value=e?(e.matricule||""):"";
   document.getElementById("fContrat").value=e?(e.contrat||""):"";
+  document.getElementById("fPause").value=e?(e.pause!=null&&e.pause!==""?e.pause:"45"):"45";
+  document.getElementById("empError").textContent="";
   document.getElementById("empOverlay").classList.add("show");
   document.getElementById("empModal").classList.add("show");
 }
@@ -679,9 +694,17 @@ function saveEmpForm(){
   const tel=document.getElementById("fTel").value.trim();
   const matricule=document.getElementById("fMat").value.trim();
   const contrat=document.getElementById("fContrat").value.trim();
-  if(!prenom && !nom){ alert("Indique au moins un prénom ou un nom."); return; }
-  if(empEditId){ const e=employees.find(x=>x.id===empEditId); if(e){ e.prenom=prenom; e.nom=nom; e.tel=tel; e.matricule=matricule; e.contrat=contrat; delete e.name; } }
-  else { const e={id:uid(),prenom,nom,tel,matricule,contrat,archived:false}; employees.push(e); ensureTemplate(e.id); }
+  const pause=document.getElementById("fPause").value.trim()||"45";
+  const setErr=m=>{ document.getElementById("empError").textContent=m; };
+  setErr("");
+  if(!prenom && !nom){ setErr("Indique au moins un prénom ou un nom."); return; }
+  // matricule unique (parmi tous les salariés, actifs ou anciens)
+  if(matricule){
+    const dup=employees.some(x=>x.id!==empEditId && (x.matricule||"").trim().toLowerCase()===matricule.toLowerCase());
+    if(dup){ setErr(`Le matricule « ${matricule} » est déjà utilisé par un autre salarié.`); return; }
+  }
+  if(empEditId){ const e=employees.find(x=>x.id===empEditId); if(e){ e.prenom=prenom; e.nom=nom; e.tel=tel; e.matricule=matricule; e.contrat=contrat; e.pause=pause; delete e.name; } }
+  else { const e={id:uid(),prenom,nom,tel,matricule,contrat,pause,archived:false}; employees.push(e); ensureTemplate(e.id); }
   saveAll(); closeEmpForm(); renderEmployees();
 }
 /* archivage (jamais de suppression : l'historique est conservé) */
