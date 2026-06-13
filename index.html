@@ -257,6 +257,36 @@
   .form-fields input{border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:16px;color:var(--ink);font-weight:600;}
   .form-fields input:focus{outline:none;border-color:var(--primary);}
   .form-error{color:var(--red);font-size:13px;font-weight:700;margin-top:10px;min-height:1px;}
+  .req{color:var(--red);font-weight:700;font-size:11px;text-transform:none;}
+  .form-fields select{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:16px;color:var(--ink);font-weight:600;background:#fff;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+
+  /* poste / carte cliquable */
+  .emp-meta .poste{color:var(--ink);}
+  .emp-main{cursor:pointer;}
+  .emp-nom .chev{color:var(--muted);font-weight:700;}
+
+  /* NB JOBS (pointage technicien) */
+  .jobs-row{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border:1.5px dashed var(--blue);border-radius:11px;background:var(--blue-bg);}
+  .jobs-lbl{font-size:13px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;}
+  .jobs-row input{flex:1;border:1.5px solid var(--line);border-radius:9px;padding:9px 12px;font-size:18px;font-weight:800;text-align:center;color:var(--ink);max-width:120px;background:#fff;}
+  .jobs-row input:focus{outline:none;border-color:var(--primary);}
+
+  /* fiche salarié plein écran + documents */
+  .ed-card{background:var(--card);border-radius:14px;padding:16px;margin:12px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .ed-name{font-size:20px;font-weight:800;margin-bottom:10px;}
+  .ed-arch{font-size:12px;background:#fef3c7;color:#b45309;border-radius:999px;padding:2px 8px;font-weight:700;vertical-align:middle;}
+  .ed-rows{display:flex;flex-direction:column;}
+  .ed-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px;}
+  .ed-row:last-child{border-bottom:none;}
+  .ed-row span{color:var(--muted);font-weight:600;}
+  .ed-fiche-actions{display:flex;gap:8px;margin-top:14px;}
+  .ed-fiche-actions button{flex:1;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;}
+  .ed-docs-head{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:800;margin:18px 16px 8px;}
+  .btn-add-doc{display:block;margin:0 12px;background:var(--primary);color:#fff;border-radius:12px;padding:14px;font-size:15px;font-weight:700;text-align:center;cursor:pointer;}
+  .doc-row{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:12px;padding:12px;margin:8px 12px 0;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .doc-ic{font-size:22px;flex:none;}
+  .doc-name{flex:1;min-width:0;font-weight:600;cursor:pointer;word-break:break-word;}
+  .doc-name small{display:block;color:var(--muted);font-weight:600;font-size:12px;}
 </style>
 </head>
 <body>
@@ -339,7 +369,7 @@
   <div id="empCards" class="emp-cards"></div>
   <div class="add-emp-bar"><button class="btn-add-emp" onclick="openEmpForm(null)">＋ Ajouter un salarié</button></div>
 </section>
-<section class="page" id="page5"><div class="page-empty"><div class="pe-num">Page 5</div><p>Page vide — on la construira plus tard.</p></div></section>
+<section class="page" id="page5"><div class="page-empty"><div class="pe-num">Rapport</div><p>Page vide — on la construira plus tard (validation de journée + historique).</p></div></section>
 
 <!-- ===================== MENU ÉDITION HORAIRE (modal) ===================== -->
 <div id="modalOverlay" class="modal-overlay" onclick="closeSchedule()"></div>
@@ -372,15 +402,22 @@
   <p class="hint">Décoche un jour pour « repos ». Tu peux mettre une heure différente chaque jour.</p>
 </div>
 
+<!-- ===================== FICHE SALARIÉ — PAGE COMPLÈTE (documents) ===================== -->
+<div id="empDetail" class="fs">
+  <div class="sub-head"><button class="icon-btn" onclick="closeEmpDetail()">‹</button><h2 id="edTitle">Fiche salarié</h2></div>
+  <div id="edBody"></div>
+</div>
+
 <!-- ===================== FICHE SALARIÉ (modal) ===================== -->
 <div id="empOverlay" class="modal-overlay" onclick="closeEmpForm()"></div>
 <div id="empModal" class="modal">
   <div class="modal-title" id="empModalTitle">Nouveau salarié</div>
   <div class="form-fields">
+    <label>N° de matricule <span class="req">obligatoire</span><input id="fMat" type="text" autocomplete="off"></label>
     <label>Prénom<input id="fPrenom" type="text" autocomplete="off"></label>
     <label>Nom<input id="fNom" type="text" autocomplete="off"></label>
+    <label>Poste<select id="fPoste"><option value="laveur">Laveur auto</option><option value="technicien">Technicien pare-brise</option></select></label>
     <label>Téléphone<input id="fTel" type="tel" inputmode="tel" autocomplete="off"></label>
-    <label>N° de matricule<input id="fMat" type="text" autocomplete="off"></label>
     <label>Heures par semaine (contrat)<input id="fContrat" type="text" inputmode="numeric" autocomplete="off" placeholder="ex. 35"></label>
     <label>Pause du midi (minutes)<input id="fPause" type="text" inputmode="numeric" autocomplete="off" placeholder="45"></label>
   </div>
@@ -395,7 +432,7 @@
 /* =========================================================
    NAVIGATION GLOBALE (5 pages)
    ========================================================= */
-const PAGES=["Pointage quotidien","Plannings semaine","Semaine de référence","Salariés","Page 5"];
+const PAGES=["Pointage quotidien","Plannings semaine","Semaine de référence","Salariés","Rapport"];
 let currentPage=1;
 
 (function buildNav(){
@@ -431,6 +468,7 @@ const DEFAULT_EMP=[{prenom:"Mathieu",nom:"Garnier"},{prenom:"Karim",nom:"Benali"
 const ARR_LABEL={present:"Présent",retard:"En retard",absent:"Absent"};
 const DEP_LABEL={parti:"Parti",avance:"Parti en avance",heuresup:"Heure sup."};
 const ARR_COLOR={present:"green",retard:"amber",absent:"red"};
+const POSTE_LABEL={laveur:"Laveur auto",technicien:"Technicien pare-brise"};
 const DEP_COLOR={parti:"green",avance:"blue",heuresup:"amber"};
 
 let employees=load(K_EMP,null);
@@ -472,7 +510,7 @@ function planned(dk,id){
 }
 function recEntry(dk,id){
   if(!records[dk]) records[dk]={};
-  if(!records[dk][id]) records[dk][id]={arrStatus:"",arrTime:"",retardMin:0,depStatus:"",depTime:"",hsMin:0};
+  if(!records[dk][id]) records[dk][id]={arrStatus:"",arrTime:"",retardMin:0,depStatus:"",depTime:"",hsMin:0,nbJobs:""};
   return records[dk][id];
 }
 
@@ -568,9 +606,14 @@ function cardInner(dk,e){
       </div>
       ${depFoot}
     </div>`;
+  const jobsRow = (e.poste==="technicien") ? `
+    <div class="jobs-row">
+      <span class="jobs-lbl">NB JOBS</span>
+      <input type="number" min="0" step="1" inputmode="numeric" value="${en.nbJobs!=null&&en.nbJobs!==""?escapeAttr(String(en.nbJobs)):""}" placeholder="0" onchange="setNbJobs('${e.id}',this.value)">
+    </div>` : "";
   return `<div class="p-head"><span class="p-name">${escapeHtml(empName(e))}</span>
       <button class="edit-day" onclick="openSchedule('${e.id}','${dk}')">✎ horaire du jour</button></div>
-    ${arrBlock}${depBlock}`;
+    ${arrBlock}${depBlock}${jobsRow}`;
 }
 function card(dk,e,isNow){ return `<div class="person ${isNow?"now":""}">${cardInner(dk,e)}</div>`; }
 
@@ -630,12 +673,14 @@ function okHeureSup(id){
   if(personEl){ personEl.innerHTML=cardInner(dk,e); setTimeout(renderHome,500); } else renderHome();
 }
 function setDepTime(id,v){ recEntry(key(viewDate),id).depTime=v; saveAll(); }
+function setNbJobs(id,v){ recEntry(key(viewDate),id).nbJobs=v; saveAll(); }
 
 /* ----- Page 4 : Salariés (fiches) ----- */
 function empPause(e){ return (e.pause!=null && e.pause!=="") ? e.pause : "45"; }
 function empMetaHTML(e){
   return `<div class="emp-meta">
     <span class="mat">🆔 ${e.matricule?escapeHtml(e.matricule):"<i>matricule —</i>"}</span>
+    <span class="poste">🧰 ${POSTE_LABEL[e.poste]||"Laveur auto"}</span>
     ${e.contrat?`<span>📄 ${escapeHtml(String(e.contrat))} h/sem</span>`:""}
     <span>🍽 ${escapeHtml(String(empPause(e)))} min</span>
     ${e.tel?`<span>📞 ${escapeHtml(e.tel)}</span>`:""}
@@ -651,7 +696,7 @@ function renderEmployees(){
   if(act.length===0 && !q){ html+=`<p class="hint">Aucun salarié actif. Touche « Ajouter un salarié » ci-dessous.</p>`; }
   else html+=act.map(e=>`
     <div class="emp-card">
-      <div class="emp-main"><div class="emp-nom">${escapeHtml(empName(e))}</div>${empMetaHTML(e)}</div>
+      <div class="emp-main" onclick="openEmpDetail('${e.id}')"><div class="emp-nom">${escapeHtml(empName(e))} <span class="chev">›</span></div>${empMetaHTML(e)}</div>
       <div class="emp-actions">
         <button class="hours-btn" onclick="openTemplate('${e.id}')" title="Horaires">🕗</button>
         <button class="edit-emp" onclick="openEmpForm('${e.id}')" title="Modifier">✎</button>
@@ -662,7 +707,7 @@ function renderEmployees(){
     html+=`<div class="section-title anc">Anciens salariés <span class="anc-note">(historique conservé)</span></div>`;
     html+=arch.map(e=>`
       <div class="emp-card archived">
-        <div class="emp-main"><div class="emp-nom">${escapeHtml(empName(e))}</div>${empMetaHTML(e)}</div>
+        <div class="emp-main" onclick="openEmpDetail('${e.id}')"><div class="emp-nom">${escapeHtml(empName(e))} <span class="chev">›</span></div>${empMetaHTML(e)}</div>
         <div class="emp-actions">
           <button class="edit-emp" onclick="openEmpForm('${e.id}')" title="Modifier">✎</button>
           <button class="restore-btn" onclick="restoreEmp('${e.id}')" title="Réactiver">↩︎</button>
@@ -681,6 +726,7 @@ function openEmpForm(id){
   document.getElementById("fNom").value=e?(e.nom||""):"";
   document.getElementById("fTel").value=e?(e.tel||""):"";
   document.getElementById("fMat").value=e?(e.matricule||""):"";
+  document.getElementById("fPoste").value=e?(e.poste||"laveur"):"laveur";
   document.getElementById("fContrat").value=e?(e.contrat||""):"";
   document.getElementById("fPause").value=e?(e.pause!=null&&e.pause!==""?e.pause:"45"):"45";
   document.getElementById("empError").textContent="";
@@ -693,23 +739,86 @@ function saveEmpForm(){
   const nom=document.getElementById("fNom").value.trim();
   const tel=document.getElementById("fTel").value.trim();
   const matricule=document.getElementById("fMat").value.trim();
+  const poste=document.getElementById("fPoste").value;
   const contrat=document.getElementById("fContrat").value.trim();
   const pause=document.getElementById("fPause").value.trim()||"45";
   const setErr=m=>{ document.getElementById("empError").textContent=m; };
   setErr("");
+  if(!matricule){ setErr("Le numéro de matricule est obligatoire."); return; }
   if(!prenom && !nom){ setErr("Indique au moins un prénom ou un nom."); return; }
   // matricule unique (parmi tous les salariés, actifs ou anciens)
-  if(matricule){
-    const dup=employees.some(x=>x.id!==empEditId && (x.matricule||"").trim().toLowerCase()===matricule.toLowerCase());
-    if(dup){ setErr(`Le matricule « ${matricule} » est déjà utilisé par un autre salarié.`); return; }
-  }
-  if(empEditId){ const e=employees.find(x=>x.id===empEditId); if(e){ e.prenom=prenom; e.nom=nom; e.tel=tel; e.matricule=matricule; e.contrat=contrat; e.pause=pause; delete e.name; } }
-  else { const e={id:uid(),prenom,nom,tel,matricule,contrat,pause,archived:false}; employees.push(e); ensureTemplate(e.id); }
+  const dup=employees.some(x=>x.id!==empEditId && (x.matricule||"").trim().toLowerCase()===matricule.toLowerCase());
+  if(dup){ setErr(`Le matricule « ${matricule} » est déjà utilisé par un autre salarié.`); return; }
+  if(empEditId){ const e=employees.find(x=>x.id===empEditId); if(e){ e.prenom=prenom; e.nom=nom; e.tel=tel; e.matricule=matricule; e.poste=poste; e.contrat=contrat; e.pause=pause; delete e.name; } }
+  else { const e={id:uid(),prenom,nom,tel,matricule,poste,contrat,pause,archived:false}; employees.push(e); ensureTemplate(e.id); }
   saveAll(); closeEmpForm(); renderEmployees();
+  if(document.getElementById("empDetail").classList.contains("show")) renderEmpDetail();
 }
 /* archivage (jamais de suppression : l'historique est conservé) */
 function archiveEmp(id){ const e=employees.find(x=>x.id===id); if(!confirm(`Mettre ${e?empName(e):"ce salarié"} en « ancien salarié » ?\n\nIl disparaîtra du pointage et des plannings, mais tout son historique de présence est conservé.`)) return; if(e){ e.archived=true; saveAll(); renderEmployees(); } }
 function restoreEmp(id){ const e=employees.find(x=>x.id===id); if(e){ e.archived=false; saveAll(); renderEmployees(); } }
+
+/* ----- Fiche salarié plein écran + documents ----- */
+let edDetailId=null;
+function openEmpDetail(id){ edDetailId=id; renderEmpDetail(); document.getElementById("empDetail").classList.add("show"); window.scrollTo(0,0); }
+function closeEmpDetail(){ document.getElementById("empDetail").classList.remove("show"); renderEmployees(); }
+function renderEmpDetail(){
+  const e=employees.find(x=>x.id===edDetailId); if(!e) return;
+  document.getElementById("edTitle").textContent=empName(e);
+  const row=(lbl,val)=>`<div class="ed-row"><span>${lbl}</span><b>${val}</b></div>`;
+  document.getElementById("edBody").innerHTML=`
+    <div class="ed-card">
+      <div class="ed-name">${escapeHtml(empName(e))} ${e.archived?'<span class="ed-arch">ancien salarié</span>':''}</div>
+      <div class="ed-rows">
+        ${row("Matricule", e.matricule?escapeHtml(e.matricule):"—")}
+        ${row("Poste", POSTE_LABEL[e.poste]||"Laveur auto")}
+        ${row("Contrat", e.contrat?escapeHtml(String(e.contrat))+" h/sem":"—")}
+        ${row("Pause midi", escapeHtml(String(empPause(e)))+" min")}
+        ${row("Téléphone", e.tel?escapeHtml(e.tel):"—")}
+      </div>
+      <div class="ed-fiche-actions">
+        <button class="hours-btn" onclick="openTemplate('${e.id}')">🕗 Horaires</button>
+        <button class="edit-emp" onclick="openEmpForm('${e.id}')">✎ Modifier la fiche</button>
+      </div>
+    </div>
+    <div class="ed-docs-head">Documents <span class="anc-note">(contrat, carte d'identité, etc.)</span></div>
+    <label class="btn-add-doc">＋ Ajouter un document
+      <input type="file" id="edFile" accept="image/*,application/pdf,.doc,.docx" multiple style="display:none" onchange="onAddDoc(this)">
+    </label>
+    <div id="edDocs"><p class="hint">Chargement…</p></div>
+    <p class="hint">Les documents sont enregistrés sur ce téléphone. Garde aussi les originaux ailleurs par sécurité.</p>`;
+  loadDocsList();
+}
+async function loadDocsList(){
+  const docs=await getDocs(edDetailId);
+  const c=document.getElementById("edDocs"); if(!c) return;
+  if(!docs.length){ c.innerHTML=`<p class="hint">Aucun document pour l'instant.</p>`; return; }
+  c.innerHTML=docs.slice().reverse().map(d=>`
+    <div class="doc-row">
+      <span class="doc-ic">${(d.type||"").includes("pdf")?"📄":((d.type||"").startsWith("image")?"🖼️":"📎")}</span>
+      <span class="doc-name" onclick="openDoc('${d.id}')">${escapeHtml(d.name)}<small>${fmtSize(d.size)}</small></span>
+      <button class="del-btn" onclick="removeDoc('${d.id}')">🗑</button>
+    </div>`).join("");
+}
+function fmtSize(b){ b=b||0; if(b<1024) return b+" o"; if(b<1048576) return Math.round(b/1024)+" Ko"; return (b/1048576).toFixed(1)+" Mo"; }
+async function onAddDoc(input){
+  const files=[...(input.files||[])]; if(!files.length) return;
+  for(const f of files){ await addDoc(edDetailId,{id:uid(),name:f.name,type:f.type,size:f.size,blob:f,addedAt:Date.now()}); }
+  input.value=""; loadDocsList();
+}
+async function openDoc(docId){
+  const docs=await getDocs(edDetailId); const d=docs.find(x=>x.id===docId); if(!d||!d.blob) return;
+  const url=URL.createObjectURL(d.blob); window.open(url,"_blank"); setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+async function removeDoc(docId){ if(!confirm("Supprimer ce document ?")) return; await delDoc(edDetailId,docId); loadDocsList(); }
+
+/* IndexedDB : documents par salarié (clé = id du salarié, valeur = liste de docs) */
+let _db=null;
+function idb(){ return new Promise((res,rej)=>{ if(_db) return res(_db); const r=indexedDB.open("pointageDocs",1); r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains("empDocs")) r.result.createObjectStore("empDocs"); }; r.onsuccess=()=>{_db=r.result;res(_db);}; r.onerror=()=>rej(r.error); }); }
+function getDocs(empId){ return idb().then(db=>new Promise(res=>{ const rq=db.transaction("empDocs","readonly").objectStore("empDocs").get(empId); rq.onsuccess=()=>res(rq.result||[]); rq.onerror=()=>res([]); })); }
+function setDocs(empId,docs){ return idb().then(db=>new Promise((res,rej)=>{ const t=db.transaction("empDocs","readwrite"); t.objectStore("empDocs").put(docs,empId); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); })); }
+async function addDoc(empId,doc){ const docs=await getDocs(empId); docs.push(doc); await setDocs(empId,docs); }
+async function delDoc(empId,docId){ let docs=await getDocs(empId); docs=docs.filter(d=>d.id!==docId); await setDocs(empId,docs); }
 
 function openTemplate(id){ currentEmp=id; ensureTemplate(id); renderTemplate(); document.getElementById("template").classList.add("show"); window.scrollTo(0,0); }
 function closeTemplate(){ document.getElementById("template").classList.remove("show"); if(currentPage===4) renderEmployees(); else if(currentPage===3) renderBase(); else if(currentPage===2) renderWeek(); else renderHome(); }
