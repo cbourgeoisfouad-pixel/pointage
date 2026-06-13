@@ -510,7 +510,7 @@ function planned(dk,id){
 }
 function recEntry(dk,id){
   if(!records[dk]) records[dk]={};
-  if(!records[dk][id]) records[dk][id]={arrStatus:"",arrTime:"",retardMin:0,depStatus:"",depTime:"",hsMin:0,nbJobs:""};
+  if(!records[dk][id]) records[dk][id]={arrStatus:"",arrTime:"",retardMin:0,absMotif:"",depStatus:"",depTime:"",hsMin:0,nbJobs:""};
   return records[dk][id];
 }
 
@@ -518,7 +518,7 @@ function changeDay(delta){ viewDate.setDate(viewDate.getDate()+delta); renderHom
 function goToday(){ viewDate=startOfToday(); renderHome(); }
 function dayDone(en){
   if(!en) return false;
-  if(en.arrStatus==="absent") return true;        // absent → journée réglée
+  if(en.arrStatus==="absent") return !!en.absMotif; // absent réglé une fois le motif validé
   if(!en.arrStatus) return false;                 // pas encore arrivé
   if(en.depStatus==="parti"||en.depStatus==="avance") return true;
   if(en.depStatus==="heuresup") return (en.hsMin||0)>0;   // validé après OK
@@ -555,6 +555,8 @@ const RETARD_OPTS=[[30,"30 min"],[60,"1 heure"],[90,"1 h 30"],[120,"2 heures"],[
 function retardLabel(min){ const o=RETARD_OPTS.find(x=>x[0]===min); return o?o[1]:(min+" min"); }
 const HSUP_OPTS=[[15,"15 min"],[30,"30 min"],[45,"45 min"],[60,"1 heure"],[75,"1 h 15"],[90,"1 h 30"],[105,"1 h 45"],[120,"2 heures"]];
 function hsupLabel(min){ const o=HSUP_OPTS.find(x=>x[0]===min); return o?o[1]:(min+" min"); }
+const ABS_OPTS=[["conge","Congé"],["injustifiee","Absence injustifiée"]];
+function absLabel(v){ const o=ABS_OPTS.find(x=>x[0]===v); return o?o[1]:""; }
 
 function cardInner(dk,e){
   const p=planned(dk,e.id), en=recEntry(dk,e.id);
@@ -569,6 +571,15 @@ function cardInner(dk,e){
         </select>
         <button class="ret-ok" onclick="okRetard('${e.id}')">OK</button>
         ${en.retardMin>0?`<span class="ret-done">✓ ${retardLabel(en.retardMin)}${en.arrTime?` — arrivé ${en.arrTime}`:""}</span>`:""}
+      </div>`;
+  } else if(en.arrStatus==="absent"){
+    arrFoot=`<div class="slot-foot retard-pick">
+        <label>Motif</label>
+        <select id="absSel-${e.id}">
+          ${ABS_OPTS.map(([v,l])=>`<option value="${v}" ${(en.absMotif||"conge")===v?"selected":""}>${l}</option>`).join("")}
+        </select>
+        <button class="ret-ok" onclick="okAbsent('${e.id}')">OK</button>
+        ${en.absMotif?`<span class="ret-done">✓ ${absLabel(en.absMotif)}</span>`:""}
       </div>`;
   }
   const arrBlock=`
@@ -606,7 +617,7 @@ function cardInner(dk,e){
       </div>
       ${depFoot}
     </div>`;
-  const jobsRow = (e.poste==="technicien") ? `
+  const jobsRow = (e.poste==="technicien" && en.arrStatus!=="absent") ? `
     <div class="jobs-row">
       <span class="jobs-lbl">NB JOBS</span>
       <input type="number" min="0" step="1" inputmode="numeric" value="${en.nbJobs!=null&&en.nbJobs!==""?escapeAttr(String(en.nbJobs)):""}" placeholder="0" onchange="setNbJobs('${e.id}',this.value)">
@@ -629,9 +640,18 @@ function markArr(id,status,btn){
   else if(status==="retard"){ en.arrTime=en.arrTime||""; } // garde la durée déjà choisie
   saveAll();
   // l'arrivée ne fait PAS descendre la carte : on rafraîchit juste sur place
+  // (« Absent » affiche un menu déroulant de motif ; descend après OK)
   if(personEl) personEl.innerHTML=cardInner(dk,e); else renderHome();
-  // « Absent » = journée réglée → la carte descend une demi-seconde après
-  if(status==="absent") setTimeout(renderHome,500);
+}
+function okAbsent(id){
+  const dk=key(viewDate), en=recEntry(dk,id);
+  const sel=document.getElementById("absSel-"+id);
+  en.absMotif=sel?sel.value:(en.absMotif||"conge");
+  if(en.arrStatus!=="absent") en.arrStatus="absent";
+  saveAll();
+  // motif validé → la journée est réglée → on montre la confirmation puis on descend
+  const e=employees.find(x=>x.id===id), personEl=sel?sel.closest(".person"):null;
+  if(personEl){ personEl.innerHTML=cardInner(dk,e); setTimeout(renderHome,500); } else renderHome();
 }
 function okRetard(id){
   const dk=key(viewDate), en=recEntry(dk,id), p=planned(dk,id);
@@ -952,7 +972,8 @@ function showDetail(k){
   const pointed=employees.filter(e=>{ const en=day[e.id]; return en&&(en.arrStatus||en.depStatus); });
   document.getElementById("detailBody").innerHTML=`<div class="detail-head">Pointages de la journée</div>`+pointed.map(e=>{
     const en=day[e.id]||{arrStatus:"",depStatus:"",arrTime:"",depTime:""};
-    const aB=en.arrStatus?`<span class="badge ${ARR_COLOR[en.arrStatus]}">${ARR_LABEL[en.arrStatus]}${en.arrStatus!=="absent"&&en.arrTime?" "+en.arrTime:""}</span>`:`<span class="badge none">—</span>`;
+    const arrExtra=en.arrStatus==="absent"?(en.absMotif?" — "+absLabel(en.absMotif):""):(en.arrTime?" "+en.arrTime:"");
+    const aB=en.arrStatus?`<span class="badge ${ARR_COLOR[en.arrStatus]}">${ARR_LABEL[en.arrStatus]}${arrExtra}</span>`:`<span class="badge none">—</span>`;
     const dB=(en.arrStatus==="absent")?"":(en.depStatus?`<span class="badge ${DEP_COLOR[en.depStatus]}">${DEP_LABEL[en.depStatus]}${en.depTime?" "+en.depTime:""}</span>`:`<span class="badge none">—</span>`);
     return `<div class="detail-row"><span class="dn">${escapeHtml(empName(e))}</span><span class="detail-vals">${aB}${dB}</span></div>`;
   }).join("");
@@ -963,7 +984,7 @@ function exportCSV(){
   if(keys.length===0){ alert("Rien à exporter pour l'instant."); return; }
   let rows=[["Date","Salarié","Arrivée prévue","Arrivée réelle","Statut arrivée","Sortie prévue","Sortie réelle","Statut sortie"]];
   keys.forEach(k=>{ employees.forEach(e=>{ const en=records[k][e.id]; if(!en||(!en.arrStatus&&!en.depStatus)) return; const p=planned(k,e.id);
-    rows.push([k,empName(e),p.arr||"",en.arrTime||"",en.arrStatus?ARR_LABEL[en.arrStatus]:"",p.dep||"",en.depTime||"",en.depStatus?DEP_LABEL[en.depStatus]:""]); }); });
+    rows.push([k,empName(e),p.arr||"",en.arrTime||"",en.arrStatus?(ARR_LABEL[en.arrStatus]+(en.arrStatus==="absent"&&en.absMotif?" ("+absLabel(en.absMotif)+")":"")):"",p.dep||"",en.depTime||"",en.depStatus?DEP_LABEL[en.depStatus]:""]); }); });
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\r\n");
   const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"}); const url=URL.createObjectURL(blob), a=document.createElement("a");
   a.href=url; a.download="pointage_"+key(startOfToday())+".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
