@@ -240,6 +240,11 @@
   .emp-actions{display:flex;gap:6px;flex:none;}
   .emp-actions button{width:38px;height:38px;border:none;border-radius:9px;font-size:16px;cursor:pointer;padding:0;display:grid;place-items:center;}
   .edit-emp{background:#eef1f4;color:var(--ink);}
+  .arch-btn{background:#fef3c7;color:#b45309;}
+  .restore-btn{background:var(--green-bg);color:var(--green);}
+  .emp-card.archived{opacity:.65;background:#f7f8fa;}
+  .section-title.anc{margin:18px 6px 8px;}
+  .anc-note{font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted);}
   .add-emp-bar{padding:4px 12px calc(24px + var(--safe-bottom));}
   .btn-add-emp{width:100%;background:var(--primary);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700;cursor:pointer;}
 
@@ -371,6 +376,7 @@
     <label>Nom<input id="fNom" type="text" autocomplete="off"></label>
     <label>Téléphone<input id="fTel" type="tel" inputmode="tel" autocomplete="off"></label>
     <label>N° de matricule<input id="fMat" type="text" autocomplete="off"></label>
+    <label>Heures par semaine (contrat)<input id="fContrat" type="text" inputmode="numeric" autocomplete="off" placeholder="ex. 35"></label>
   </div>
   <div class="modal-actions">
     <button class="ov-reset" onclick="closeEmpForm()">Annuler</button>
@@ -479,12 +485,12 @@ function renderHome(){
   document.getElementById("bigDate").textContent=frDate(viewDate);
   document.getElementById("todayBtn").style.display=isToday(viewDate)?"none":"inline-block";
   const list=document.getElementById("list");
-  if(employees.length===0){
-    list.innerHTML=`<div class="empty"><p>Aucun salarié pour l'instant.<br>Ajoute ton équipe pour commencer.</p>
+  if(actives().length===0){
+    list.innerHTML=`<div class="empty"><p>Aucun salarié actif pour l'instant.<br>Ajoute ton équipe pour commencer.</p>
       <button class="btn-primary" onclick="goPage(4)">＋ Ajouter les salariés</button></div>`; return;
   }
   const working=[], repos=[];
-  employees.forEach(e=>{ (planned(dk,e.id).work?working:repos).push(e); });
+  actives().forEach(e=>{ (planned(dk,e.id).work?working:repos).push(e); });
   let html="";
   if(working.length===0){
     html+=`<div class="empty"><p>Personne de prévu ${isToday(viewDate)?"aujourd'hui":"ce jour"}.</p></div>`;
@@ -619,24 +625,39 @@ function okHeureSup(id){
 function setDepTime(id,v){ recEntry(key(viewDate),id).depTime=v; saveAll(); }
 
 /* ----- Page 4 : Salariés (fiches) ----- */
+function empMetaHTML(e){
+  return `<div class="emp-meta">
+    <span class="mat">🆔 ${e.matricule?escapeHtml(e.matricule):"<i>matricule —</i>"}</span>
+    ${e.contrat?`<span>📄 ${escapeHtml(String(e.contrat))} h/sem</span>`:""}
+    ${e.tel?`<span>📞 ${escapeHtml(e.tel)}</span>`:""}
+  </div>`;
+}
 function renderEmployees(){
   const c=document.getElementById("empCards");
-  if(employees.length===0){ c.innerHTML=`<p class="hint">Aucun salarié pour l'instant. Touche « Ajouter un salarié » ci-dessous.</p>`; return; }
-  c.innerHTML=employees.map(e=>`
+  const act=employees.filter(e=>!e.archived), arch=employees.filter(e=>e.archived);
+  let html="";
+  if(act.length===0){ html+=`<p class="hint">Aucun salarié actif. Touche « Ajouter un salarié » ci-dessous.</p>`; }
+  else html+=act.map(e=>`
     <div class="emp-card">
-      <div class="emp-main">
-        <div class="emp-nom">${escapeHtml(empName(e))}</div>
-        <div class="emp-meta">
-          <span class="mat">🆔 ${e.matricule?escapeHtml(e.matricule):"<i>matricule —</i>"}</span>
-          ${e.tel?`<span>📞 ${escapeHtml(e.tel)}</span>`:""}
-        </div>
-      </div>
+      <div class="emp-main"><div class="emp-nom">${escapeHtml(empName(e))}</div>${empMetaHTML(e)}</div>
       <div class="emp-actions">
         <button class="hours-btn" onclick="openTemplate('${e.id}')" title="Horaires">🕗</button>
         <button class="edit-emp" onclick="openEmpForm('${e.id}')" title="Modifier">✎</button>
-        <button class="del-btn" onclick="delEmp('${e.id}')" title="Supprimer">🗑</button>
+        <button class="arch-btn" onclick="archiveEmp('${e.id}')" title="Mettre en ancien salarié">📦</button>
       </div>
     </div>`).join("");
+  if(arch.length){
+    html+=`<div class="section-title anc">Anciens salariés <span class="anc-note">(historique conservé)</span></div>`;
+    html+=arch.map(e=>`
+      <div class="emp-card archived">
+        <div class="emp-main"><div class="emp-nom">${escapeHtml(empName(e))}</div>${empMetaHTML(e)}</div>
+        <div class="emp-actions">
+          <button class="edit-emp" onclick="openEmpForm('${e.id}')" title="Modifier">✎</button>
+          <button class="restore-btn" onclick="restoreEmp('${e.id}')" title="Réactiver">↩︎</button>
+        </div>
+      </div>`).join("");
+  }
+  c.innerHTML=html;
 }
 let empEditId=null;
 function openEmpForm(id){
@@ -647,6 +668,7 @@ function openEmpForm(id){
   document.getElementById("fNom").value=e?(e.nom||""):"";
   document.getElementById("fTel").value=e?(e.tel||""):"";
   document.getElementById("fMat").value=e?(e.matricule||""):"";
+  document.getElementById("fContrat").value=e?(e.contrat||""):"";
   document.getElementById("empOverlay").classList.add("show");
   document.getElementById("empModal").classList.add("show");
 }
@@ -656,12 +678,15 @@ function saveEmpForm(){
   const nom=document.getElementById("fNom").value.trim();
   const tel=document.getElementById("fTel").value.trim();
   const matricule=document.getElementById("fMat").value.trim();
+  const contrat=document.getElementById("fContrat").value.trim();
   if(!prenom && !nom){ alert("Indique au moins un prénom ou un nom."); return; }
-  if(empEditId){ const e=employees.find(x=>x.id===empEditId); if(e){ e.prenom=prenom; e.nom=nom; e.tel=tel; e.matricule=matricule; delete e.name; } }
-  else { const e={id:uid(),prenom,nom,tel,matricule}; employees.push(e); ensureTemplate(e.id); }
+  if(empEditId){ const e=employees.find(x=>x.id===empEditId); if(e){ e.prenom=prenom; e.nom=nom; e.tel=tel; e.matricule=matricule; e.contrat=contrat; delete e.name; } }
+  else { const e={id:uid(),prenom,nom,tel,matricule,contrat,archived:false}; employees.push(e); ensureTemplate(e.id); }
   saveAll(); closeEmpForm(); renderEmployees();
 }
-function delEmp(id){ const e=employees.find(x=>x.id===id); if(!confirm(`Supprimer ${e?empName(e):"ce salarié"} ?`)) return; employees=employees.filter(x=>x.id!==id); saveAll(); renderEmployees(); }
+/* archivage (jamais de suppression : l'historique est conservé) */
+function archiveEmp(id){ const e=employees.find(x=>x.id===id); if(!confirm(`Mettre ${e?empName(e):"ce salarié"} en « ancien salarié » ?\n\nIl disparaîtra du pointage et des plannings, mais tout son historique de présence est conservé.`)) return; if(e){ e.archived=true; saveAll(); renderEmployees(); } }
+function restoreEmp(id){ const e=employees.find(x=>x.id===id); if(e){ e.archived=false; saveAll(); renderEmployees(); } }
 
 function openTemplate(id){ currentEmp=id; ensureTemplate(id); renderTemplate(); document.getElementById("template").classList.add("show"); window.scrollTo(0,0); }
 function closeTemplate(){ document.getElementById("template").classList.remove("show"); if(currentPage===4) renderEmployees(); else if(currentPage===3) renderBase(); else if(currentPage===2) renderWeek(); else renderHome(); }
@@ -733,9 +758,9 @@ function clearSchedule(){ if(schedMode!=="date") return; const dk=schedDate; if(
 
 /* ----- Page 3 : semaine de référence (la trame qui se répète) ----- */
 function renderBase(){
-  if(employees.length===0){ document.getElementById("baseWrap").innerHTML=`<div class="empty"><p>Ajoute d'abord des salariés dans « Pointage quotidien » → ⚙️.</p></div>`; return; }
+  if(actives().length===0){ document.getElementById("baseWrap").innerHTML=`<div class="empty"><p>Ajoute d'abord des salariés dans la page « Salariés ».</p></div>`; return; }
   let head="<tr><th class='name-col'></th>"+ORDRE.map(wd=>`<th>${JOURS_C[wd]}</th>`).join("")+"</tr>";
-  let body=employees.map(e=>{
+  let body=actives().map(e=>{
     ensureTemplate(e.id);
     let row=`<td class="name-col">${escapeHtml(empName(e))}</td>`;
     row+=ORDRE.map(wd=>{
@@ -760,9 +785,9 @@ function renderWeek(){
   const moEl=d=>d.toLocaleDateString("fr-FR",{month:"long"});
   document.getElementById("weekLabel").textContent="Semaine du "+ws.getDate()+(sameMonth?"":" "+moEl(ws))+" au "+last.getDate()+" "+moEl(last);
   const tk=key(startOfToday());
-  if(employees.length===0){ document.getElementById("weekWrap").innerHTML=`<div class="empty"><p>Ajoute d'abord des salariés dans « Pointage quotidien » → ⚙️.</p></div>`; return; }
+  if(actives().length===0){ document.getElementById("weekWrap").innerHTML=`<div class="empty"><p>Ajoute d'abord des salariés dans la page « Salariés ».</p></div>`; return; }
   let head="<tr><th class='name-col'></th>"+days.map(d=>`<th class="${key(d)===tk?"today":""}">${JOURS_C[d.getDay()]}<br>${d.getDate()}</th>`).join("")+"</tr>";
-  let body=employees.map(e=>{
+  let body=actives().map(e=>{
     let row=`<td class="name-col">${escapeHtml(empName(e))}</td>`;
     row+=days.map(d=>{
       const dk=key(d), p=planned(dk,e.id), ovr=overrides[dk]&&overrides[dk][e.id];
@@ -792,7 +817,8 @@ function renderHistory(){
 function showDetail(k){
   document.getElementById("detailTitle").textContent=frDate(parseKey(k));
   const day=records[k]||{};
-  document.getElementById("detailBody").innerHTML=`<div class="detail-head">Pointages de la journée</div>`+employees.map(e=>{
+  const pointed=employees.filter(e=>{ const en=day[e.id]; return en&&(en.arrStatus||en.depStatus); });
+  document.getElementById("detailBody").innerHTML=`<div class="detail-head">Pointages de la journée</div>`+pointed.map(e=>{
     const en=day[e.id]||{arrStatus:"",depStatus:"",arrTime:"",depTime:""};
     const aB=en.arrStatus?`<span class="badge ${ARR_COLOR[en.arrStatus]}">${ARR_LABEL[en.arrStatus]}${en.arrStatus!=="absent"&&en.arrTime?" "+en.arrTime:""}</span>`:`<span class="badge none">—</span>`;
     const dB=(en.arrStatus==="absent")?"":(en.depStatus?`<span class="badge ${DEP_COLOR[en.depStatus]}">${DEP_LABEL[en.depStatus]}${en.depTime?" "+en.depTime:""}</span>`:`<span class="badge none">—</span>`);
@@ -822,6 +848,7 @@ function showHistory(){ renderHistory(); switchScreen("history"); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s){ return escapeHtml(s); }
 function empName(e){ const n=`${e.prenom||""} ${e.nom||""}`.trim(); return n||e.name||"Sans nom"; }
+function actives(){ return employees.filter(e=>!e.archived); }
 
 /* démarrage */
 goPage(1);
