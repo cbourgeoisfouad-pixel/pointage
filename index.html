@@ -316,7 +316,12 @@
   <div class="week-wrap" id="weekWrap"></div>
   <p class="hint">Touche une case pour fixer ou modifier l'horaire d'un jour (utile pour préparer la semaine suivante). Par défaut, c'est la semaine type qui s'affiche ; les cases modifiées apparaissent en bleu. Pour changer les horaires habituels qui se répètent, va dans « Pointage quotidien » → ⚙️ → 🕗 Horaires.</p>
 </section>
-<section class="page" id="page3"><div class="page-empty"><div class="pe-num">Semaine de référence</div><p>Page vide — on la construira plus tard.</p></div></section>
+<section class="page" id="page3">
+  <div class="week-head"><div class="week-label">Semaine de référence</div></div>
+  <p class="hint" style="padding:12px 16px 0;">Horaires de base appliqués <b>automatiquement à toutes les semaines à venir</b>. C'est la trame qui se répète.</p>
+  <div class="week-wrap" id="baseWrap"></div>
+  <p class="hint">Touche une case pour régler l'horaire habituel d'un jour. Pour un changement ponctuel sur une semaine donnée, utilise « Plannings semaine ».</p>
+</section>
 <section class="page" id="page4"><div class="page-empty"><div class="pe-num">Page 4</div><p>Page vide — on la construira plus tard.</p></div></section>
 <section class="page" id="page5"><div class="page-empty"><div class="pe-num">Page 5</div><p>Page vide — on la construira plus tard.</p></div></section>
 
@@ -327,10 +332,10 @@
   <div class="modal-sub" id="schedSub"></div>
   <div class="ov-card" id="schedCard"></div>
   <div class="modal-actions">
-    <button class="ov-reset" onclick="clearSchedule()">Rétablir l'habituel</button>
+    <button class="ov-reset" id="schedReset" onclick="clearSchedule()">Rétablir l'habituel</button>
     <button class="ov-save" onclick="saveSchedule()">Valider</button>
   </div>
-  <p class="modal-note">Ne change que ce jour précis. La semaine type n'est pas modifiée.</p>
+  <p class="modal-note" id="schedNote">Ne change que ce jour précis. La semaine de référence n'est pas modifiée.</p>
 </div>
 
 <script>
@@ -355,6 +360,7 @@ function goPage(n){
   closeDrawer();
   if(n===1) showHome();
   if(n===2) renderWeek();
+  if(n===3) renderBase();
   window.scrollTo(0,0);
 }
 function openDrawer(){ document.getElementById("drawer").classList.add("open"); document.getElementById("overlay").classList.add("show"); }
@@ -539,32 +545,66 @@ function setTplArr(d,v){ templates[currentEmp][d].arr=v; saveAll(); }
 function setTplDep(d,v){ templates[currentEmp][d].dep=v; saveAll(); }
 function applyPreset(days){ const a=document.getElementById("presetArr").value,b=document.getElementById("presetDep").value; days.forEach(d=>{ templates[currentEmp][d]={work:true,arr:a,dep:b}; }); saveAll(); renderTemplate(); }
 
-/* ----- Menu modal : éditer l'horaire d'un jour précis (Page 1 ET Page 2) ----- */
-let schedEmp=null, schedDate=null;
-function openSchedule(id,dk){
-  schedEmp=id; schedDate=dk;
-  const e=employees.find(x=>x.id===id), p=planned(dk,id);
-  document.getElementById("schedSub").innerHTML=`<b>${escapeHtml(e.name)}</b> — ${frDate(parseKey(dk))}`;
-  const work=p.work, arr=p.arr||"08:00", dep=p.dep||"17:00";
-  document.getElementById("schedCard").innerHTML=`
+/* ----- Menu modal : éditer un horaire (jour précis OU habituel) ----- */
+let schedMode="date", schedEmp=null, schedDate=null, schedWeekday=null;
+const JOURS_FULL=["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+function schedCardHTML(work,arr,dep){
+  return `
     <div class="line"><span>Travaille ce jour</span>
       <label class="sw"><input type="checkbox" id="schedWork" ${work?"checked":""} onchange="schedToggle(this.checked)"><span class="slider"></span></label></div>
     <div class="line" id="schedTimes" style="${work?"":"opacity:.35;pointer-events:none;"}">
       <span>Horaire</span><span><input type="time" id="schedArr" value="${arr}"> → <input type="time" id="schedDep" value="${dep}"></span>
     </div>`;
-  document.getElementById("modalOverlay").classList.add("show");
-  document.getElementById("scheduleModal").classList.add("show");
+}
+function showModal(){ document.getElementById("modalOverlay").classList.add("show"); document.getElementById("scheduleModal").classList.add("show"); }
+function openSchedule(id,dk){
+  schedMode="date"; schedEmp=id; schedDate=dk;
+  const e=employees.find(x=>x.id===id), p=planned(dk,id);
+  document.getElementById("schedTitle").textContent="Horaire de ce jour";
+  document.getElementById("schedSub").innerHTML=`<b>${escapeHtml(e.name)}</b> — ${frDate(parseKey(dk))}`;
+  document.getElementById("schedCard").innerHTML=schedCardHTML(p.work, p.arr||"08:00", p.dep||"17:00");
+  document.getElementById("schedReset").style.display="";
+  document.getElementById("schedNote").textContent="Ne change que ce jour précis. La semaine de référence n'est pas modifiée.";
+  showModal();
+}
+function openBase(id,wd){
+  schedMode="base"; schedEmp=id; schedWeekday=wd; ensureTemplate(id);
+  const e=employees.find(x=>x.id===id), day=templates[id][wd];
+  document.getElementById("schedTitle").textContent="Horaire habituel";
+  document.getElementById("schedSub").innerHTML=`<b>${escapeHtml(e.name)}</b> — tous les ${JOURS_FULL[wd]}s`;
+  document.getElementById("schedCard").innerHTML=schedCardHTML(day.work, day.arr||"08:00", day.dep||"17:00");
+  document.getElementById("schedReset").style.display="none";
+  document.getElementById("schedNote").textContent="S'applique automatiquement à toutes les semaines à venir.";
+  showModal();
 }
 function schedToggle(on){ document.getElementById("schedTimes").style.cssText=on?"":"opacity:.35;pointer-events:none;"; }
 function closeSchedule(){ document.getElementById("modalOverlay").classList.remove("show"); document.getElementById("scheduleModal").classList.remove("show"); }
-function afterSchedule(){ closeSchedule(); if(currentPage===2) renderWeek(); else renderHome(); }
+function afterSchedule(){ closeSchedule(); if(currentPage===2) renderWeek(); else if(currentPage===3) renderBase(); else renderHome(); }
 function saveSchedule(){
-  const dk=schedDate, work=document.getElementById("schedWork").checked;
+  const work=document.getElementById("schedWork").checked;
   const arr=document.getElementById("schedArr").value, dep=document.getElementById("schedDep").value;
-  if(!overrides[dk]) overrides[dk]={};
-  overrides[dk][schedEmp]={work,arr:work?arr:"",dep:work?dep:""}; saveAll(); afterSchedule();
+  if(schedMode==="base"){ templates[schedEmp][schedWeekday]={work,arr,dep}; }
+  else { if(!overrides[schedDate]) overrides[schedDate]={}; overrides[schedDate][schedEmp]={work,arr:work?arr:"",dep:work?dep:""}; }
+  saveAll(); afterSchedule();
 }
-function clearSchedule(){ const dk=schedDate; if(overrides[dk]){ delete overrides[dk][schedEmp]; if(!Object.keys(overrides[dk]).length) delete overrides[dk]; } saveAll(); afterSchedule(); }
+function clearSchedule(){ if(schedMode!=="date") return; const dk=schedDate; if(overrides[dk]){ delete overrides[dk][schedEmp]; if(!Object.keys(overrides[dk]).length) delete overrides[dk]; } saveAll(); afterSchedule(); }
+
+/* ----- Page 3 : semaine de référence (la trame qui se répète) ----- */
+function renderBase(){
+  if(employees.length===0){ document.getElementById("baseWrap").innerHTML=`<div class="empty"><p>Ajoute d'abord des salariés dans « Pointage quotidien » → ⚙️.</p></div>`; return; }
+  let head="<tr><th class='name-col'></th>"+ORDRE.map(wd=>`<th>${JOURS_C[wd]}</th>`).join("")+"</tr>";
+  let body=employees.map(e=>{
+    ensureTemplate(e.id);
+    let row=`<td class="name-col">${escapeHtml(e.name)}</td>`;
+    row+=ORDRE.map(wd=>{
+      const day=templates[e.id][wd];
+      if(!day.work) return `<td><div class="cell repos" onclick="openBase('${e.id}',${wd})">Repos</div></td>`;
+      return `<td><div class="cell" onclick="openBase('${e.id}',${wd})"><span class="a">${day.arr||"—"}</span><span>${day.dep||"—"}</span></div></td>`;
+    }).join("");
+    return "<tr>"+row+"</tr>";
+  }).join("");
+  document.getElementById("baseWrap").innerHTML=`<table class="wk"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+}
 
 /* ----- Page 2 : plannings de la semaine ----- */
 let weekRef=startOfToday();
