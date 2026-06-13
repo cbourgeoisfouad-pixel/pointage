@@ -331,6 +331,28 @@
   .rap-sign-lbl{font-size:14px;margin-bottom:8px;}
   .rap-sign-img{border:1px solid var(--line);border-radius:8px;max-width:260px;background:#fff;}
   .rap-actions{padding:0 12px calc(24px + var(--safe-bottom));}
+
+  /* bulles rapport */
+  .rap-bulle{background:var(--card);border-radius:14px;padding:14px;margin:12px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .rap-bulle-title{font-size:15px;font-weight:800;margin-bottom:12px;}
+  .rap-bulle .hist-day{margin:0 0 8px;}
+  .wr-controls{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+  .wr-weeknav,.wr-empnav{display:flex;align-items:center;gap:8px;}
+  .wr-weeknav span{flex:1;text-align:center;font-weight:700;font-size:14px;}
+  .wr-weeknav button,.wr-empnav button{background:#eef1f4;border:none;border-radius:8px;width:36px;height:40px;font-size:17px;font-weight:700;cursor:pointer;flex:none;}
+  .wr-empnav select{flex:1;border:1.5px solid var(--line);border-radius:9px;padding:10px;font-size:15px;font-weight:700;background:#fff;min-width:0;}
+  .wr-emp{font-size:16px;font-weight:800;margin-bottom:6px;}
+  .wr-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px;align-items:baseline;}
+  .wr-day{font-weight:700;color:var(--muted);min-width:54px;flex:none;}
+  .wr-detail{text-align:right;}
+  .wr-detail b{color:var(--ink);}
+  .wr-repos,.wr-none{color:var(--muted);}
+  .wr-abs{color:var(--red);font-weight:700;}
+  .wr-partial{color:var(--amber);}
+  .wr-total{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:2px solid var(--ink);font-size:16px;font-weight:800;}
+  .wr-total b{color:var(--green);}
+  .rap-search{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px;font-size:16px;margin-bottom:10px;}
+  .rap-search:focus{outline:none;border-color:var(--primary);}
 </style>
 </head>
 <body>
@@ -434,7 +456,21 @@
 </section>
 <section class="page" id="page5">
   <div class="week-head"><div class="week-label">Rapport</div></div>
-  <div id="rapportList"></div>
+  <div id="rapportMain">
+    <div class="rap-bulle">
+      <div class="rap-bulle-title">📋 Heures de la semaine — par salarié</div>
+      <div class="wr-controls">
+        <div class="wr-weeknav"><button onclick="repWeek(-1)">‹</button><span id="repWeekLabel"></span><button onclick="repWeek(1)">›</button></div>
+        <div class="wr-empnav"><button onclick="repEmpStep(-1)">‹</button><select id="repEmp" onchange="renderWeekRep()"></select><button onclick="repEmpStep(1)">›</button></div>
+      </div>
+      <div id="weekRepBody"></div>
+    </div>
+    <div class="rap-bulle">
+      <div class="rap-bulle-title">🗓️ Rapports du jour (journées signées)</div>
+      <input id="rapSearch" class="rap-search" type="search" placeholder="🔍 Rechercher une date (ex. « 10 janvier »)…" oninput="renderRapportList()" autocomplete="off">
+      <div id="rapportList"></div>
+    </div>
+  </div>
   <div id="rapportDetail" style="display:none;">
     <div class="rap-back"><button onclick="backRapport()">‹ Retour</button> <span id="rapTitle"></span></div>
     <div id="rapBody"></div>
@@ -1230,10 +1266,69 @@ async function saveValidate(){
 }
 
 function renderRapport(){
+  document.getElementById("rapportDetail").style.display="none";
+  document.getElementById("rapportMain").style.display="block";
+  const sel=document.getElementById("repEmp"); const cur=sel.value;
+  sel.innerHTML=actives().map(e=>`<option value="${e.id}">${escapeHtml(empName(e))}</option>`).join("");
+  if(cur && [...sel.options].some(o=>o.value===cur)) sel.value=cur;
+  renderWeekRep();
+  renderRapportList();
+}
+
+/* ----- Bulle 1 : heures de la semaine par salarié ----- */
+let repWeekRef=startOfToday();
+function repWeek(d){ repWeekRef.setDate(repWeekRef.getDate()+d*7); renderWeekRep(); }
+function repEmpStep(d){ const sel=document.getElementById("repEmp"); const n=sel.options.length; if(!n) return; let i=sel.selectedIndex+d; if(i<0)i=n-1; if(i>=n)i=0; sel.selectedIndex=i; renderWeekRep(); }
+function fmtH(min){ if(min<=0) return "0 h 00"; const h=Math.floor(min/60), m=min%60; return h+" h "+String(m).padStart(2,"0"); }
+function weekRepRows(e){
+  const ws=mondayOf(repWeekRef); const pause=parseInt(empPause(e),10)||0; let total=0; const out=[];
+  for(let i=0;i<7;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); const dk=key(d);
+    const p=planned(dk,e.id), en=(records[dk]&&records[dk][e.id])||{}; let detail, txt, mins=0;
+    if(!p.work){ detail=`<span class="wr-repos">Repos</span>`; txt="Repos"; }
+    else if(en.arrStatus==="absent"){ detail=`<span class="wr-abs">Absent${en.absMotif?" ("+absLabel(en.absMotif)+")":""}</span>`; txt="Absent"+(en.absMotif?" ("+absLabel(en.absMotif)+")":""); }
+    else if(en.arrStatus && en.arrTime && en.depTime){ mins=Math.max(0,(toMin(en.depTime)-toMin(en.arrTime))-pause); total+=mins; detail=`${en.arrTime} → ${en.depTime} <b>${fmtH(mins)}</b>`; txt=`${en.arrTime} → ${en.depTime} (${fmtH(mins)})`; }
+    else if(en.arrStatus){ detail=`<span class="wr-partial">Arrivé ${en.arrTime||p.arr||""}, sortie non pointée</span>`; txt="Sortie non pointée"; }
+    else { detail=`<span class="wr-none">Non pointé</span>`; txt="Non pointé"; }
+    out.push({day:JOURS_C[d.getDay()]+" "+d.getDate(), detail, txt});
+  }
+  return {ws, rows:out, total};
+}
+function renderWeekRep(){
+  const sel=document.getElementById("repEmp"); const e=employees.find(x=>x.id===sel.value);
+  const ws=mondayOf(repWeekRef), last=new Date(ws); last.setDate(ws.getDate()+6);
+  const moEl=d=>d.toLocaleDateString("fr-FR",{month:"long"});
+  document.getElementById("repWeekLabel").textContent="Semaine du "+ws.getDate()+(ws.getMonth()===last.getMonth()?"":" "+moEl(ws))+" au "+last.getDate()+" "+moEl(last);
+  if(!e){ document.getElementById("weekRepBody").innerHTML=`<p class="hint">Aucun salarié.</p>`; return; }
+  const r=weekRepRows(e);
+  document.getElementById("weekRepBody").innerHTML=
+    `<div class="wr-emp">${escapeHtml(empName(e))}${e.matricule?` · ${escapeHtml(e.matricule)}`:""}</div>`+
+    r.rows.map(x=>`<div class="wr-row"><span class="wr-day">${x.day}</span><span class="wr-detail">${x.detail}</span></div>`).join("")+
+    `<div class="wr-total"><span>Total semaine</span><b>${fmtH(r.total)}</b></div>`+
+    `<div class="rap-actions" style="padding:12px 0 0;"><button class="btn-export" onclick="printWeekRep()">🖨️ Imprimer / PDF (cette semaine)</button></div>`;
+}
+function printWeekRep(){
+  const sel=document.getElementById("repEmp"); const e=employees.find(x=>x.id===sel.value); if(!e) return;
+  const r=weekRepRows(e); const last=new Date(r.ws); last.setDate(r.ws.getDate()+6);
+  const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const lbl="Semaine du "+r.ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  const rows=r.rows.map(x=>`<tr><td>${esc(x.day)}</td><td>${esc(x.txt)}</td></tr>`).join("");
+  const w=window.open("","_blank"); if(!w){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Heures ${esc(empName(e))}</title>
+    <style>body{font-family:Arial,sans-serif;color:#111;padding:26px;}h1{font-size:19px;margin:0 0 2px;}.sub{color:#555;margin-bottom:16px;}
+    table{width:100%;border-collapse:collapse;font-size:14px;}td{border:1px solid #bbb;padding:8px 10px;}.tot{margin-top:16px;font-size:16px;font-weight:bold;}</style></head>
+    <body><h1>${esc(empName(e))}${e.matricule?" — "+esc(e.matricule):""}</h1><div class="sub">${esc(lbl)}</div>
+    <table>${rows}</table><div class="tot">Total de la semaine : ${fmtH(r.total)}</div></body></html>`);
+  w.document.close(); setTimeout(()=>{try{w.print();}catch(e){}},350);
+}
+
+/* ----- Bulle 2 : rapports du jour (recherche par date) ----- */
+function renderRapportList(){
   const wrap=document.getElementById("rapportList");
-  document.getElementById("rapportDetail").style.display="none"; wrap.style.display="block";
-  const days=Object.keys(validated).sort().reverse();
-  if(days.length===0){ wrap.innerHTML=`<p class="hint">Aucune journée validée pour l'instant.<br>Une fois tous les salariés pointés, signe la journée depuis « Pointage quotidien ».</p>`; return; }
+  const norm=s=>String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  const q=norm((document.getElementById("rapSearch")?.value||"").trim());
+  let days=Object.keys(validated).sort().reverse();
+  if(q) days=days.filter(k=>norm(frDate(parseKey(k))).includes(q) || k.includes(q));
+  if(days.length===0){ wrap.innerHTML=`<p class="hint">${q?"Aucun rapport pour cette recherche.":"Aucune journée validée pour l'instant."}</p>`; return; }
   wrap.innerHTML=days.map(k=>{
     const v=validated[k], snap=v.snapshot||{rows:[]};
     let nP=0,nR=0,nA=0; (snap.rows||[]).forEach(r=>{ if(r.arrStatus==="present")nP++; else if(r.arrStatus==="retard")nR++; else if(r.arrStatus==="absent")nA++; });
@@ -1259,11 +1354,11 @@ function openRapport(dk){
     <div class="rap-sign-block"><div class="rap-sign-lbl">Validé par <b>${escapeHtml(v.signer||"")}</b></div>
       ${v.signature?`<img class="rap-sign-img" src="${v.signature}" alt="signature">`:""}</div>
     <div class="rap-actions"><button class="btn-export" onclick="printRapport('${dk}')">🖨️ Imprimer / Enregistrer en PDF</button></div>`;
-  document.getElementById("rapportList").style.display="none";
+  document.getElementById("rapportMain").style.display="none";
   document.getElementById("rapportDetail").style.display="block";
   window.scrollTo(0,0);
 }
-function backRapport(){ document.getElementById("rapportDetail").style.display="none"; document.getElementById("rapportList").style.display="block"; }
+function backRapport(){ document.getElementById("rapportDetail").style.display="none"; document.getElementById("rapportMain").style.display="block"; }
 function printRapport(dk){
   const v=validated[dk]; if(!v) return; const snap=v.snapshot||{rows:[]};
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
