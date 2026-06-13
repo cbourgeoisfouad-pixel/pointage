@@ -33,7 +33,7 @@
   }
   .hamburger span{display:block;width:20px;height:2.5px;background:var(--ink);border-radius:2px;margin:2.5px 0;}
   .brand{font-size:17px;font-weight:800;}
-  .desktop-tabs{display:none;gap:6px;margin-right:auto;}
+  .desktop-tabs{display:none;gap:6px;}
   .tab{border:none;background:#f3f4f6;color:var(--muted);padding:9px 16px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;}
   .tab:hover{background:#e5e7eb;}
   .tab.active{background:var(--primary);color:#fff;}
@@ -287,15 +287,50 @@
   .doc-ic{font-size:22px;flex:none;}
   .doc-name{flex:1;min-width:0;font-weight:600;cursor:pointer;word-break:break-word;}
   .doc-name small{display:block;color:var(--muted);font-weight:600;font-size:12px;}
+
+  /* écran de connexion */
+  .login-screen{position:fixed;inset:0;z-index:200;background:#1f2937;display:none;align-items:center;justify-content:center;padding:24px;}
+  .login-screen.show{display:flex;}
+  .login-card{background:#fff;border-radius:18px;padding:26px 22px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.4);}
+  .login-logo{font-size:40px;text-align:center;}
+  .login-title{font-size:24px;font-weight:800;text-align:center;margin-top:4px;}
+  .login-sub{font-size:14px;color:var(--muted);text-align:center;margin:4px 0 18px;}
+  .login-card input{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:14px;font-size:16px;margin-bottom:10px;}
+  .login-card input:focus{outline:none;border-color:var(--primary);}
+  .login-error{color:var(--red);font-size:13px;font-weight:700;min-height:18px;margin-bottom:6px;}
+  .login-btn{width:100%;background:var(--primary);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:800;cursor:pointer;}
+  .login-btn:disabled{opacity:.6;}
+
+  /* déconnexion + bandeaux */
+  .logout-btn{margin-left:auto;background:#f3f4f6;color:var(--muted);border:none;border-radius:9px;padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex:none;}
+  .sync-warn{position:fixed;top:0;left:0;right:0;z-index:120;background:var(--amber);color:#fff;font-size:13px;font-weight:700;text-align:center;padding:8px;display:none;}
+  .sync-warn.show{display:block;}
+  .import-banner{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;background:var(--blue-bg);border:1px solid var(--blue);border-radius:12px;padding:12px;margin:12px;font-size:14px;color:var(--ink);}
+  .import-banner button{background:var(--primary);color:#fff;border:none;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer;font-size:13px;}
 </style>
 </head>
 <body>
+
+<!-- ===================== ÉCRAN DE CONNEXION ===================== -->
+<div id="login" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🕒</div>
+    <div class="login-title">Pointage</div>
+    <div class="login-sub">Connecte-toi pour accéder à l'application</div>
+    <input id="loginEmail" type="email" placeholder="Email" autocomplete="username" autocapitalize="off" onkeydown="if(event.key==='Enter')doLogin()">
+    <input id="loginPwd" type="password" placeholder="Mot de passe" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="login-error" id="loginErr"></div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Se connecter</button>
+  </div>
+</div>
+<div id="syncWarn" class="sync-warn">⚠️ Synchronisation interrompue — vérifie ta connexion internet</div>
 
 <!-- ===================== BARRE DE NAV GLOBALE ===================== -->
 <div id="appbar">
   <button class="hamburger" onclick="openDrawer()" aria-label="Menu"><span></span><span></span><span></span></button>
   <div class="brand" id="brand">Page 1</div>
   <div class="desktop-tabs" id="desktopTabs"></div>
+  <button class="logout-btn" id="logoutBtn" onclick="doLogout()" title="Se déconnecter" style="display:none;">Déconnexion</button>
 </div>
 
 <!-- tiroir mobile -->
@@ -365,6 +400,10 @@
 </section>
 <section class="page" id="page4">
   <div class="week-head"><div class="week-label">Salariés</div></div>
+  <div id="importBanner" class="import-banner" style="display:none;">
+    <span>📥 Des salariés sont enregistrés sur <b>cet appareil</b> mais pas encore en ligne.</span>
+    <button onclick="importLocal()">Importer en ligne maintenant</button>
+  </div>
   <div class="emp-search"><input id="empSearch" type="search" placeholder="🔍 Rechercher un nom ou un matricule…" oninput="renderEmployees()" autocomplete="off"></div>
   <div id="empCards" class="emp-cards"></div>
   <div class="add-emp-bar"><button class="btn-add-emp" onclick="openEmpForm(null)">＋ Ajouter un salarié</button></div>
@@ -429,6 +468,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 /* =========================================================
    NAVIGATION GLOBALE (5 pages)
@@ -472,27 +512,38 @@ const ARR_COLOR={present:"green",retard:"amber",absent:"red"};
 const POSTE_LABEL={laveur:"Laveur auto",technicien:"Technicien pare-brise"};
 const DEP_COLOR={parti:"green",avance:"blue",heuresup:"amber"};
 
-let employees=load(K_EMP,null);
-let templates=load(K_TPL,{});
-let overrides=load(K_OVR,{});
-let records  =load(K_REC,{});
+let employees=[], templates={}, overrides={}, records={};
 let viewDate=startOfToday();
 let currentEmp=null;
 
-if(employees===null){
-  if(!localStorage.getItem(K_SEED)){ employees=DEFAULT_EMP.map(d=>({id:uid(),nom:d.nom,prenom:d.prenom,tel:"",matricule:""})); localStorage.setItem(K_SEED,"1"); }
-  else { employees=[]; }
-}
-employees.forEach(e=>ensureTemplate(e.id));
-saveAll();
+/* ================= BASE EN LIGNE (Supabase) ================= */
+const SB_URL="https://dpyxocddszufsqwnsghq.supabase.co";
+const SB_KEY="sb_publishable_Ndt22X3DwVJZP5sC46ckKQ_kKizkENx";
+const sb=window.supabase.createClient(SB_URL, SB_KEY);
 
-function load(k,f){ try{ const v=JSON.parse(localStorage.getItem(k)); return v??f; }catch{ return f; } }
-function saveAll(){
-  localStorage.setItem(K_EMP,JSON.stringify(employees));
-  localStorage.setItem(K_TPL,JSON.stringify(templates));
-  localStorage.setItem(K_OVR,JSON.stringify(overrides));
-  localStorage.setItem(K_REC,JSON.stringify(records));
+/* ---- Chargement de toutes les données depuis le cloud ---- */
+async function loadAll(){
+  employees=[]; templates={}; overrides={}; records={};
+  const [emp,ovr,rec]=await Promise.all([
+    sb.from("employees").select("*"),
+    sb.from("overrides").select("*"),
+    sb.from("records").select("*")
+  ]);
+  (emp.data||[]).forEach(r=>{
+    templates[r.id]=r.template||defaultTemplate();
+    employees.push({id:r.id,prenom:r.prenom||"",nom:r.nom||"",tel:r.tel||"",email:r.email||"",matricule:r.matricule||"",poste:r.poste||"laveur",contrat:r.contrat||"",pause:(r.pause!=null?r.pause:"45"),archived:!!r.archived});
+    ensureTemplate(r.id);
+  });
+  (ovr.data||[]).forEach(r=>{ (overrides[r.date]=overrides[r.date]||{})[r.emp_id]={work:!!r.work,arr:r.arr||"",dep:r.dep||""}; });
+  (rec.data||[]).forEach(r=>{ (records[r.date]=records[r.date]||{})[r.emp_id]={arrStatus:r.arr_status||"",arrTime:r.arr_time||"",retardMin:r.retard_min||0,absMotif:r.abs_motif||"",depStatus:r.dep_status||"",depTime:r.dep_time||"",hsMin:r.hs_min||0,nbJobs:r.nb_jobs||""}; });
 }
+
+/* ---- Écritures granulaires (en arrière-plan) ---- */
+function syncErr(tag,error){ if(error){ console.error(tag,error); const w=document.getElementById("syncWarn"); if(w) w.classList.add("show"); } }
+function pushEmp(id){ const e=employees.find(x=>x.id===id); if(!e) return; sb.from("employees").upsert({id:e.id,prenom:e.prenom||null,nom:e.nom||null,tel:e.tel||null,email:e.email||null,matricule:e.matricule||null,poste:e.poste||null,contrat:e.contrat||null,pause:(e.pause!=null?String(e.pause):null),archived:!!e.archived,template:templates[e.id]||defaultTemplate(),updated_at:new Date().toISOString()}).then(({error})=>syncErr("pushEmp",error)); }
+function pushRec(dk,id){ const en=recEntry(dk,id); sb.from("records").upsert({date:dk,emp_id:id,arr_status:en.arrStatus||null,arr_time:en.arrTime||null,retard_min:en.retardMin||0,abs_motif:en.absMotif||null,dep_status:en.depStatus||null,dep_time:en.depTime||null,hs_min:en.hsMin||0,nb_jobs:en.nbJobs||null}).then(({error})=>syncErr("pushRec",error)); }
+function pushOvr(dk,id){ const o=overrides[dk][id]; sb.from("overrides").upsert({date:dk,emp_id:id,work:!!o.work,arr:o.arr||null,dep:o.dep||null}).then(({error})=>syncErr("pushOvr",error)); }
+function delOvrRow(dk,id){ sb.from("overrides").delete().match({date:dk,emp_id:id}).then(({error})=>syncErr("delOvr",error)); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 function defaultTemplate(){ const t={}; for(let d=0;d<7;d++) t[d]={work:false,arr:"08:00",dep:"17:00"}; [1,2,3,4,5].forEach(d=>t[d].work=true); return t; }
 function ensureTemplate(id){ if(!templates[id]) templates[id]=defaultTemplate(); for(let d=0;d<7;d++) if(!templates[id][d]) templates[id][d]={work:false,arr:"08:00",dep:"17:00"}; }
@@ -635,12 +686,12 @@ function markArr(id,status,btn){
   const e=employees.find(x=>x.id===id);
   const personEl=btn?btn.closest(".person"):null;
   // re-cliquer le même bouton = annuler
-  if(en.arrStatus===status){ en.arrStatus=""; en.arrTime=""; en.retardMin=0; saveAll(); renderHome(); return; }
+  if(en.arrStatus===status){ en.arrStatus=""; en.arrTime=""; en.retardMin=0; pushRec(dk,id); renderHome(); return; }
   en.arrStatus=status;
   if(status==="present"){ en.arrTime=p.arr||""; en.retardMin=0; }
   else if(status==="absent"){ en.arrTime=""; en.retardMin=0; en.depStatus=""; en.depTime=""; en.hsMin=0; }
   else if(status==="retard"){ en.arrTime=en.arrTime||""; } // garde la durée déjà choisie
-  saveAll();
+  pushRec(dk,id);
   // l'arrivée ne fait PAS descendre la carte : on rafraîchit juste sur place
   // (« Absent » affiche un menu déroulant de motif ; descend après OK)
   if(personEl) personEl.innerHTML=cardInner(dk,e); else renderHome();
@@ -650,7 +701,7 @@ function okAbsent(id){
   const sel=document.getElementById("absSel-"+id);
   en.absMotif=sel?sel.value:(en.absMotif||"conge");
   if(en.arrStatus!=="absent") en.arrStatus="absent";
-  saveAll();
+  pushRec(dk,id);
   // motif validé → la journée est réglée → on montre la confirmation puis on descend
   const e=employees.find(x=>x.id===id), personEl=sel?sel.closest(".person"):null;
   if(personEl){ personEl.innerHTML=cardInner(dk,e); setTimeout(renderHome,500); } else renderHome();
@@ -662,7 +713,7 @@ function okRetard(id){
   const pm=toMin(p.arr);
   if(pm!=null){ const t=pm+en.retardMin; en.arrTime=String(Math.floor(t/60)%24).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); }
   if(!en.arrStatus) en.arrStatus="retard";
-  saveAll();
+  pushRec(dk,id);
   // l'arrivée ne fait pas descendre : mise à jour sur place
   const e=employees.find(x=>x.id===id), personEl=sel?sel.closest(".person"):null;
   if(personEl) personEl.innerHTML=cardInner(dk,e); else renderHome();
@@ -672,12 +723,12 @@ function markDep(id,status,btn){
   const e=employees.find(x=>x.id===id);
   const personEl=btn?btn.closest(".person"):null;
   // re-cliquer le même bouton = annuler (la carte remonte)
-  if(en.depStatus===status){ en.depStatus=""; en.depTime=""; en.hsMin=0; saveAll(); renderHome(); return; }
+  if(en.depStatus===status){ en.depStatus=""; en.depTime=""; en.hsMin=0; pushRec(dk,id); renderHome(); return; }
   en.depStatus=status;
   if(status==="parti"){ en.depTime=p.dep||""; en.hsMin=0; }
   else if(status==="avance"){ en.depTime=en.depTime||p.dep||""; en.hsMin=0; }
   else if(status==="heuresup"){ en.depTime=en.depTime||p.dep||""; } // garde la durée déjà choisie
-  saveAll();
+  pushRec(dk,id);
   if(personEl) personEl.innerHTML=cardInner(dk,e); else renderHome();
   // « Parti »/« Avance » terminent la journée → la carte descend 0,5 s après
   if(status==="parti"||status==="avance") setTimeout(renderHome,500);
@@ -689,13 +740,13 @@ function okHeureSup(id){
   const pm=toMin(p.dep);
   if(pm!=null){ const t=pm+en.hsMin; en.depTime=String(Math.floor(t/60)%24).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); }
   if(!en.depStatus) en.depStatus="heuresup";
-  saveAll();
+  pushRec(dk,id);
   // l'heure sup termine la journée → on montre la confirmation puis on descend
   const e=employees.find(x=>x.id===id), personEl=sel?sel.closest(".person"):null;
   if(personEl){ personEl.innerHTML=cardInner(dk,e); setTimeout(renderHome,500); } else renderHome();
 }
-function setDepTime(id,v){ recEntry(key(viewDate),id).depTime=v; saveAll(); }
-function setNbJobs(id,v){ recEntry(key(viewDate),id).nbJobs=v; saveAll(); }
+function setDepTime(id,v){ const dk=key(viewDate); recEntry(dk,id).depTime=v; pushRec(dk,id); }
+function setNbJobs(id,v){ const dk=key(viewDate); recEntry(dk,id).nbJobs=v; pushRec(dk,id); }
 
 /* ----- Page 4 : Salariés (fiches) ----- */
 function empPause(e){ return (e.pause!=null && e.pause!=="") ? e.pause : "45"; }
@@ -774,14 +825,15 @@ function saveEmpForm(){
   // matricule unique (parmi tous les salariés, actifs ou anciens)
   const dup=employees.some(x=>x.id!==empEditId && (x.matricule||"").trim().toLowerCase()===matricule.toLowerCase());
   if(dup){ setErr(`Le matricule « ${matricule} » est déjà utilisé par un autre salarié.`); return; }
+  let savedId=empEditId;
   if(empEditId){ const e=employees.find(x=>x.id===empEditId); if(e){ e.prenom=prenom; e.nom=nom; e.tel=tel; e.email=email; e.matricule=matricule; e.poste=poste; e.contrat=contrat; e.pause=pause; delete e.name; } }
-  else { const e={id:uid(),prenom,nom,tel,email,matricule,poste,contrat,pause,archived:false}; employees.push(e); ensureTemplate(e.id); }
-  saveAll(); closeEmpForm(); renderEmployees();
+  else { const e={id:uid(),prenom,nom,tel,email,matricule,poste,contrat,pause,archived:false}; employees.push(e); ensureTemplate(e.id); savedId=e.id; }
+  pushEmp(savedId); closeEmpForm(); renderEmployees();
   if(document.getElementById("empDetail").classList.contains("show")) renderEmpDetail();
 }
 /* archivage (jamais de suppression : l'historique est conservé) */
-function archiveEmp(id){ const e=employees.find(x=>x.id===id); if(!confirm(`Mettre ${e?empName(e):"ce salarié"} en « ancien salarié » ?\n\nIl disparaîtra du pointage et des plannings, mais tout son historique de présence est conservé.`)) return; if(e){ e.archived=true; saveAll(); renderEmployees(); } }
-function restoreEmp(id){ const e=employees.find(x=>x.id===id); if(e){ e.archived=false; saveAll(); renderEmployees(); } }
+function archiveEmp(id){ const e=employees.find(x=>x.id===id); if(!confirm(`Mettre ${e?empName(e):"ce salarié"} en « ancien salarié » ?\n\nIl disparaîtra du pointage et des plannings, mais tout son historique de présence est conservé.`)) return; if(e){ e.archived=true; pushEmp(id); renderEmployees(); } }
+function restoreEmp(id){ const e=employees.find(x=>x.id===id); if(e){ e.archived=false; pushEmp(id); renderEmployees(); } }
 
 /* ----- Fiche salarié plein écran + documents ----- */
 let edDetailId=null;
@@ -865,10 +917,10 @@ function renderTemplate(){
     </div>`;
   }).join("");
 }
-function setTplWork(d,on){ templates[currentEmp][d].work=on; saveAll(); renderTemplate(); }
-function setTplArr(d,v){ templates[currentEmp][d].arr=v; saveAll(); }
-function setTplDep(d,v){ templates[currentEmp][d].dep=v; saveAll(); }
-function applyPreset(days){ const a=document.getElementById("presetArr").value,b=document.getElementById("presetDep").value; days.forEach(d=>{ templates[currentEmp][d]={work:true,arr:a,dep:b}; }); saveAll(); renderTemplate(); }
+function setTplWork(d,on){ templates[currentEmp][d].work=on; pushEmp(currentEmp); renderTemplate(); }
+function setTplArr(d,v){ templates[currentEmp][d].arr=v; pushEmp(currentEmp); }
+function setTplDep(d,v){ templates[currentEmp][d].dep=v; pushEmp(currentEmp); }
+function applyPreset(days){ const a=document.getElementById("presetArr").value,b=document.getElementById("presetDep").value; days.forEach(d=>{ templates[currentEmp][d]={work:true,arr:a,dep:b}; }); pushEmp(currentEmp); renderTemplate(); }
 
 /* ----- Menu modal : éditer un horaire (jour précis OU habituel) ----- */
 let schedMode="date", schedEmp=null, schedDate=null, schedWeekday=null;
@@ -908,11 +960,11 @@ function afterSchedule(){ closeSchedule(); if(currentPage===2) renderWeek(); els
 function saveSchedule(){
   const work=document.getElementById("schedWork").checked;
   const arr=document.getElementById("schedArr").value, dep=document.getElementById("schedDep").value;
-  if(schedMode==="base"){ templates[schedEmp][schedWeekday]={work,arr,dep}; }
-  else { if(!overrides[schedDate]) overrides[schedDate]={}; overrides[schedDate][schedEmp]={work,arr:work?arr:"",dep:work?dep:""}; }
-  saveAll(); afterSchedule();
+  if(schedMode==="base"){ templates[schedEmp][schedWeekday]={work,arr,dep}; pushEmp(schedEmp); }
+  else { if(!overrides[schedDate]) overrides[schedDate]={}; overrides[schedDate][schedEmp]={work,arr:work?arr:"",dep:work?dep:""}; pushOvr(schedDate,schedEmp); }
+  afterSchedule();
 }
-function clearSchedule(){ if(schedMode!=="date") return; const dk=schedDate; if(overrides[dk]){ delete overrides[dk][schedEmp]; if(!Object.keys(overrides[dk]).length) delete overrides[dk]; } saveAll(); afterSchedule(); }
+function clearSchedule(){ if(schedMode!=="date") return; const dk=schedDate; if(overrides[dk]){ delete overrides[dk][schedEmp]; if(!Object.keys(overrides[dk]).length) delete overrides[dk]; } delOvrRow(dk,schedEmp); afterSchedule(); }
 
 /* ----- Page 3 : semaine de référence (la trame qui se répète) ----- */
 function renderBase(){
@@ -1009,8 +1061,63 @@ function escapeAttr(s){ return escapeHtml(s); }
 function empName(e){ const n=`${e.prenom||""} ${e.nom||""}`.trim(); return n||e.name||"Sans nom"; }
 function actives(){ return employees.filter(e=>!e.archived); }
 
+/* =========================================================
+   CONNEXION (Supabase Auth) + DÉMARRAGE
+   ========================================================= */
+async function boot(){
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(session) await enterApp(); else showLogin();
+    sb.auth.onAuthStateChange((ev,sess)=>{ if(ev==="SIGNED_IN" && sess){ enterApp(); } if(ev==="SIGNED_OUT"){ location.reload(); } });
+  }catch(e){ console.error("boot",e); showLogin(); }
+}
+function showLogin(){ document.getElementById("login").classList.add("show"); }
+let _entered=false;
+async function enterApp(){
+  if(_entered) return; _entered=true;
+  document.getElementById("login").classList.remove("show");
+  document.getElementById("logoutBtn").style.display="";
+  await loadAll();
+  maybeOfferImport();
+  goPage(currentPage||1);
+}
+async function doLogin(){
+  const email=document.getElementById("loginEmail").value.trim();
+  const pwd=document.getElementById("loginPwd").value;
+  const errEl=document.getElementById("loginErr"); errEl.textContent="";
+  const btn=document.getElementById("loginBtn"); btn.disabled=true; const old=btn.textContent; btn.textContent="Connexion…";
+  const {error}=await sb.auth.signInWithPassword({email,password:pwd});
+  btn.disabled=false; btn.textContent=old;
+  if(error){ errEl.textContent = /confirm/i.test(error.message)?"Compte non confirmé (coche « Auto Confirm » dans Supabase).":"Email ou mot de passe incorrect."; }
+}
+async function doLogout(){ await sb.auth.signOut(); location.reload(); }
+
+/* ---- Import unique des données locales (de cet appareil) vers le cloud ---- */
+function maybeOfferImport(){
+  const banner=document.getElementById("importBanner"); if(!banner) return;
+  const localEmp=JSON.parse(localStorage.getItem("pointage_employees")||"null");
+  const hasLocal=Array.isArray(localEmp)&&localEmp.length>0;
+  banner.style.display=(employees.length===0 && hasLocal)?"flex":"none";
+}
+async function importLocal(){
+  const oldEmp=JSON.parse(localStorage.getItem("pointage_employees")||"null");
+  if(!oldEmp||!oldEmp.length){ alert("Aucune donnée locale à importer sur cet appareil."); return; }
+  if(!confirm(`Importer ${oldEmp.length} salarié(s) de cet appareil vers la base en ligne ?`)) return;
+  const oldTpl=JSON.parse(localStorage.getItem("pointage_templates")||"{}");
+  const oldOvr=JSON.parse(localStorage.getItem("pointage_overrides")||"{}");
+  const oldRec=JSON.parse(localStorage.getItem("pointage_records")||"{}");
+  const empRows=oldEmp.map(e=>({id:e.id,prenom:e.prenom||null,nom:e.nom||null,tel:e.tel||null,email:e.email||null,matricule:e.matricule||null,poste:e.poste||null,contrat:e.contrat||null,pause:(e.pause!=null?String(e.pause):null),archived:!!e.archived,template:oldTpl[e.id]||defaultTemplate()}));
+  let r=await sb.from("employees").upsert(empRows); if(r.error){ alert("Erreur import salariés : "+r.error.message); return; }
+  const ovrRows=[]; Object.entries(oldOvr).forEach(([d,m])=>Object.entries(m).forEach(([id,o])=>ovrRows.push({date:d,emp_id:id,work:!!o.work,arr:o.arr||null,dep:o.dep||null})));
+  if(ovrRows.length){ r=await sb.from("overrides").upsert(ovrRows); if(r.error){ alert("Erreur import plannings : "+r.error.message); return; } }
+  const recRows=[]; Object.entries(oldRec).forEach(([d,m])=>Object.entries(m).forEach(([id,en])=>recRows.push({date:d,emp_id:id,arr_status:en.arrStatus||null,arr_time:en.arrTime||null,retard_min:en.retardMin||0,abs_motif:en.absMotif||null,dep_status:en.depStatus||null,dep_time:en.depTime||null,hs_min:en.hsMin||0,nb_jobs:en.nbJobs||null})));
+  if(recRows.length){ r=await sb.from("records").upsert(recRows); if(r.error){ alert("Erreur import pointages : "+r.error.message); return; } }
+  await loadAll(); maybeOfferImport(); goPage(4);
+  alert("Import terminé ! Tes données sont maintenant en ligne et visibles sur tous tes appareils.");
+}
+
 /* démarrage */
-goPage(1);
+boot();
 </script>
 </body>
 </html>
