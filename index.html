@@ -416,9 +416,9 @@ const JOURS_C=["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
 const ORDRE=[1,2,3,4,5,6,0];
 const DEFAULT_EMP=[{prenom:"Mathieu",nom:"Garnier"},{prenom:"Karim",nom:"Benali"},{prenom:"David",nom:"Lefèbvre"},{prenom:"Thomas",nom:"Moreau"},{prenom:"Sofiane",nom:"Andrieu"}];
 const ARR_LABEL={present:"Présent",retard:"En retard",absent:"Absent"};
-const DEP_LABEL={parti:"Parti",avance:"Parti en avance",retard:"Parti en retard"};
+const DEP_LABEL={parti:"Parti",avance:"Parti en avance",heuresup:"Heure sup."};
 const ARR_COLOR={present:"green",retard:"amber",absent:"red"};
-const DEP_COLOR={parti:"green",avance:"blue",retard:"amber"};
+const DEP_COLOR={parti:"green",avance:"blue",heuresup:"amber"};
 
 let employees=load(K_EMP,null);
 let templates=load(K_TPL,{});
@@ -459,13 +459,20 @@ function planned(dk,id){
 }
 function recEntry(dk,id){
   if(!records[dk]) records[dk]={};
-  if(!records[dk][id]) records[dk][id]={arrStatus:"",arrTime:"",retardMin:0,depStatus:"",depTime:""};
+  if(!records[dk][id]) records[dk][id]={arrStatus:"",arrTime:"",retardMin:0,depStatus:"",depTime:"",hsMin:0};
   return records[dk][id];
 }
 
 function changeDay(delta){ viewDate.setDate(viewDate.getDate()+delta); renderHome(); }
 function goToday(){ viewDate=startOfToday(); renderHome(); }
-function pendingAction(dk,id){ const en=recEntry(dk,id); if(!en.arrStatus) return {type:"arr"}; if(en.arrStatus==="absent") return null; if(!en.depStatus) return {type:"dep"}; return null; }
+function dayDone(en){
+  if(!en) return false;
+  if(en.arrStatus==="absent") return true;        // absent → journée réglée
+  if(!en.arrStatus) return false;                 // pas encore arrivé
+  if(en.depStatus==="parti"||en.depStatus==="avance") return true;
+  if(en.depStatus==="heuresup") return (en.hsMin||0)>0;   // validé après OK
+  return false;                                    // arrivé mais sortie pas encore pointée
+}
 
 function renderHome(){
   const dk=key(viewDate);
@@ -481,21 +488,13 @@ function renderHome(){
   let html="";
   if(working.length===0){
     html+=`<div class="empty"><p>Personne de prévu ${isToday(viewDate)?"aujourd'hui":"ce jour"}.</p></div>`;
-  } else if(isToday(viewDate)){
-    const now=new Date().getHours()*60+new Date().getMinutes();
-    const grp={now:[],soon:[],done:[]};
-    working.forEach(e=>{
-      const pa=pendingAction(dk,e.id);
-      if(!pa){ grp.done.push({e}); return; }
-      const p=planned(dk,e.id); const t=toMin(pa.type==="arr"?p.arr:p.dep);
-      if(t===null || t<=now+15) grp.now.push({e,t:t??0}); else grp.soon.push({e,t});
-    });
-    grp.now.sort((a,b)=>a.t-b.t); grp.soon.sort((a,b)=>a.t-b.t);
-    if(grp.now.length) html+=`<div class="section-title now"><span class="pulse"></span>À pointer maintenant</div>`+grp.now.map(x=>card(dk,x.e,true)).join("");
-    if(grp.soon.length) html+=`<div class="section-title">⏳ Plus tard aujourd'hui</div>`+grp.soon.map(x=>card(dk,x.e,false)).join("");
-    if(grp.done.length) html+=`<div class="section-title">✓ Terminé</div>`+grp.done.map(x=>card(dk,x.e,false)).join("");
   } else {
-    html+=`<div class="section-title">Prévus ce jour</div>`+working.map(e=>card(dk,e,false)).join("");
+    const byArr=(a,b)=>{ const ta=toMin(planned(dk,a.id).arr), tb=toMin(planned(dk,b.id).arr); return (ta==null?9999:ta)-(tb==null?9999:tb); };
+    const notDone=[], done=[];
+    working.forEach(e=>{ (dayDone(records[dk]&&records[dk][e.id])?done:notDone).push(e); });
+    notDone.sort(byArr); done.sort(byArr);
+    if(notDone.length) html+=`<div class="section-title">À pointer · par ordre d'arrivée</div>`+notDone.map(e=>card(dk,e,false)).join("");
+    if(done.length) html+=`<div class="section-title">✓ Journée terminée</div>`+done.map(e=>card(dk,e,false)).join("");
   }
   if(repos.length) html+=`<div class="section-title">😴 Repos</div><div class="repos">`+repos.map(e=>`<b>${escapeHtml(empName(e))}</b>`).join(" · ")+`</div>`;
   list.innerHTML=html;
@@ -503,6 +502,8 @@ function renderHome(){
 
 const RETARD_OPTS=[[30,"30 min"],[60,"1 heure"],[90,"1 h 30"],[120,"2 heures"],[150,"2 h 30"]];
 function retardLabel(min){ const o=RETARD_OPTS.find(x=>x[0]===min); return o?o[1]:(min+" min"); }
+const HSUP_OPTS=[[15,"15 min"],[30,"30 min"],[45,"45 min"],[60,"1 heure"],[75,"1 h 15"],[90,"1 h 30"],[105,"1 h 45"],[120,"2 heures"]];
+function hsupLabel(min){ const o=HSUP_OPTS.find(x=>x[0]===min); return o?o[1]:(min+" min"); }
 
 function cardInner(dk,e){
   const p=planned(dk,e.id), en=recEntry(dk,e.id);
@@ -529,16 +530,30 @@ function cardInner(dk,e){
       </div>
       ${arrFoot}
     </div>`;
+  let depFoot="";
+  if(en.depStatus==="parti"){
+    depFoot=`<div class="slot-foot ok">✓ Pointé à ${en.depTime||p.dep||"—"}</div>`;
+  } else if(en.depStatus==="avance"){
+    depFoot=`<div class="slot-foot"><label>Parti à</label><input type="time" value="${en.depTime||p.dep||""}" onchange="setDepTime('${e.id}',this.value)"></div>`;
+  } else if(en.depStatus==="heuresup"){
+    depFoot=`<div class="slot-foot retard-pick">
+        <label>Heure sup.</label>
+        <select id="hsSel-${e.id}">
+          ${HSUP_OPTS.map(([v,l])=>`<option value="${v}" ${(en.hsMin||15)===v?"selected":""}>${l}</option>`).join("")}
+        </select>
+        <button class="ret-ok" onclick="okHeureSup('${e.id}')">OK</button>
+        ${en.hsMin>0?`<span class="ret-done">✓ +${hsupLabel(en.hsMin)}${en.depTime?` — parti ${en.depTime}`:""}</span>`:""}
+      </div>`;
+  }
   const depBlock = en.arrStatus==="absent" ? "" : `
     <div class="slot">
       <div class="slot-head"><span class="lbl">Sortie</span><span class="plan ${p.dep?"":"none"}">${p.dep||"—"}</span></div>
       <div class="qbtns">
-        <button class="${en.depStatus==="parti"?"sel green":""}" onclick="setDep('${e.id}','parti')">✓ Parti</button>
-        <button class="${en.depStatus==="avance"?"sel blue":""}" onclick="setDep('${e.id}','avance')">Avance</button>
-        <button class="${en.depStatus==="retard"?"sel amber":""}" onclick="setDep('${e.id}','retard')">Retard</button>
+        <button class="${en.depStatus==="parti"?"sel green":""}" onclick="markDep('${e.id}','parti',this)">✓ Parti</button>
+        <button class="${en.depStatus==="avance"?"sel blue":""}" onclick="markDep('${e.id}','avance',this)">Avance</button>
+        <button class="${en.depStatus==="heuresup"?"sel amber":""}" onclick="markDep('${e.id}','heuresup',this)">Heure sup</button>
       </div>
-      ${en.depStatus==="parti"?`<div class="slot-foot ok">✓ Pointé à ${en.depTime||p.dep||"—"}</div>`:""}
-      ${(en.depStatus==="avance"||en.depStatus==="retard")?`<div class="slot-foot"><label>Parti à</label><input type="time" value="${en.depTime||p.dep||""}" onchange="setDepTime('${e.id}',this.value)"></div>`:""}
+      ${depFoot}
     </div>`;
   return `<div class="p-head"><span class="p-name">${escapeHtml(empName(e))}</span>
       <button class="edit-day" onclick="openSchedule('${e.id}','${dk}')">✎ horaire du jour</button></div>
@@ -554,13 +569,13 @@ function markArr(id,status,btn){
   if(en.arrStatus===status){ en.arrStatus=""; en.arrTime=""; en.retardMin=0; saveAll(); renderHome(); return; }
   en.arrStatus=status;
   if(status==="present"){ en.arrTime=p.arr||""; en.retardMin=0; }
-  else if(status==="absent"){ en.arrTime=""; en.retardMin=0; en.depStatus=""; en.depTime=""; }
+  else if(status==="absent"){ en.arrTime=""; en.retardMin=0; en.depStatus=""; en.depTime=""; en.hsMin=0; }
   else if(status==="retard"){ en.arrTime=en.arrTime||""; } // garde la durée déjà choisie
   saveAll();
-  // mise à jour visuelle immédiate de CETTE carte, sans la déplacer
-  if(personEl) personEl.innerHTML=cardInner(dk,e);
-  // « Présent »/« Absent » : la carte ne descend qu'une demi-seconde après
-  if(status==="present"||status==="absent") setTimeout(renderHome,500);
+  // l'arrivée ne fait PAS descendre la carte : on rafraîchit juste sur place
+  if(personEl) personEl.innerHTML=cardInner(dk,e); else renderHome();
+  // « Absent » = journée réglée → la carte descend une demi-seconde après
+  if(status==="absent") setTimeout(renderHome,500);
 }
 function okRetard(id){
   const dk=key(viewDate), en=recEntry(dk,id), p=planned(dk,id);
@@ -569,13 +584,37 @@ function okRetard(id){
   const pm=toMin(p.arr);
   if(pm!=null){ const t=pm+en.retardMin; en.arrTime=String(Math.floor(t/60)%24).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); }
   if(!en.arrStatus) en.arrStatus="retard";
-  saveAll(); renderHome();
+  saveAll();
+  // l'arrivée ne fait pas descendre : mise à jour sur place
+  const e=employees.find(x=>x.id===id), personEl=sel?sel.closest(".person"):null;
+  if(personEl) personEl.innerHTML=cardInner(dk,e); else renderHome();
 }
-function setDep(id,status){
+function markDep(id,status,btn){
   const dk=key(viewDate), en=recEntry(dk,id), p=planned(dk,id);
-  if(en.depStatus===status){ en.depStatus=""; en.depTime=""; }
-  else{ en.depStatus=status; if(status==="parti") en.depTime=p.dep||""; else en.depTime=en.depTime||p.dep||""; }
-  saveAll(); renderHome();
+  const e=employees.find(x=>x.id===id);
+  const personEl=btn?btn.closest(".person"):null;
+  // re-cliquer le même bouton = annuler (la carte remonte)
+  if(en.depStatus===status){ en.depStatus=""; en.depTime=""; en.hsMin=0; saveAll(); renderHome(); return; }
+  en.depStatus=status;
+  if(status==="parti"){ en.depTime=p.dep||""; en.hsMin=0; }
+  else if(status==="avance"){ en.depTime=en.depTime||p.dep||""; en.hsMin=0; }
+  else if(status==="heuresup"){ en.depTime=en.depTime||p.dep||""; } // garde la durée déjà choisie
+  saveAll();
+  if(personEl) personEl.innerHTML=cardInner(dk,e); else renderHome();
+  // « Parti »/« Avance » terminent la journée → la carte descend 0,5 s après
+  if(status==="parti"||status==="avance") setTimeout(renderHome,500);
+}
+function okHeureSup(id){
+  const dk=key(viewDate), en=recEntry(dk,id), p=planned(dk,id);
+  const sel=document.getElementById("hsSel-"+id);
+  en.hsMin=sel?(parseInt(sel.value,10)||0):(en.hsMin||0);
+  const pm=toMin(p.dep);
+  if(pm!=null){ const t=pm+en.hsMin; en.depTime=String(Math.floor(t/60)%24).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); }
+  if(!en.depStatus) en.depStatus="heuresup";
+  saveAll();
+  // l'heure sup termine la journée → on montre la confirmation puis on descend
+  const e=employees.find(x=>x.id===id), personEl=sel?sel.closest(".person"):null;
+  if(personEl){ personEl.innerHTML=cardInner(dk,e); setTimeout(renderHome,500); } else renderHome();
 }
 function setDepTime(id,v){ recEntry(key(viewDate),id).depTime=v; saveAll(); }
 
