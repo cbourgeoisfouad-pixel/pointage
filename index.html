@@ -353,6 +353,33 @@
   .wr-total b{color:var(--green);}
   .rap-search{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px;font-size:16px;margin-bottom:10px;}
   .rap-search:focus{outline:none;border-color:var(--primary);}
+
+  /* barre semaine partagée + relevés à signer */
+  .rap-weekbar{display:flex;align-items:center;gap:8px;background:#1f2937;color:#fff;padding:10px 12px;}
+  .rap-weekbar span{flex:1;text-align:center;font-weight:800;font-size:15px;text-transform:capitalize;}
+  .rap-weekbar button{background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:8px;width:36px;height:38px;font-size:17px;font-weight:700;cursor:pointer;flex:none;}
+  .ws-row{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding:9px 0;}
+  .ws-row:last-child{border-bottom:none;}
+  .ws-main{flex:1;min-width:0;cursor:pointer;}
+  .ws-name{font-size:16px;font-weight:700;}
+  .ws-tot{font-size:13px;color:var(--muted);font-weight:600;}
+  .ws-status{flex:none;border:none;border-radius:999px;padding:9px 14px;font-size:13px;font-weight:800;cursor:pointer;background:var(--amber-bg);color:var(--amber);white-space:nowrap;}
+  .ws-status.ok{background:var(--green);color:#fff;}
+
+  /* document relevé salarié */
+  .es-doc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin:12px;}
+  .es-doc-title{font-size:18px;font-weight:800;text-align:center;margin-bottom:14px;}
+  .es-doc-id{font-size:15px;}
+  .es-doc-period{color:var(--muted);font-size:14px;margin:2px 0 12px;}
+  .es-table{width:100%;border-collapse:collapse;font-size:14px;}
+  .es-table th,.es-table td{border:1px solid var(--line);padding:7px 9px;text-align:left;}
+  .es-table th{background:#f3f4f6;font-weight:700;}
+  .es-total{margin-top:12px;font-size:15px;font-weight:800;}
+  .es-cert{margin-top:14px;font-size:13px;color:#374151;line-height:1.5;}
+  .es-signed{margin:0 12px;color:var(--green);font-weight:700;}
+  .es-sigzone{margin:12px;}
+  .es-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  .es-actions button{flex:1;min-width:150px;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -457,12 +484,14 @@
 <section class="page" id="page5">
   <div class="week-head"><div class="week-label">Rapport</div></div>
   <div id="rapportMain">
+    <div class="rap-weekbar"><button onclick="repWeek(-1)">‹</button><span id="repWeekLabel"></span><button onclick="repWeek(1)">›</button></div>
     <div class="rap-bulle">
-      <div class="rap-bulle-title">📋 Heures de la semaine — par salarié</div>
-      <div class="wr-controls">
-        <div class="wr-weeknav"><button onclick="repWeek(-1)">‹</button><span id="repWeekLabel"></span><button onclick="repWeek(1)">›</button></div>
-        <div class="wr-empnav"><button onclick="repEmpStep(-1)">‹</button><select id="repEmp" onchange="renderWeekRep()"></select><button onclick="repEmpStep(1)">›</button></div>
-      </div>
+      <div class="rap-bulle-title">✍️ Relevés à faire signer par les salariés</div>
+      <div id="weekSignList"></div>
+    </div>
+    <div class="rap-bulle">
+      <div class="rap-bulle-title">📋 Détail des heures — par salarié</div>
+      <div class="wr-empnav"><button onclick="repEmpStep(-1)">‹</button><select id="repEmp" onchange="renderWeekRep()"></select><button onclick="repEmpStep(1)">›</button></div>
       <div id="weekRepBody"></div>
     </div>
     <div class="rap-bulle">
@@ -512,6 +541,12 @@
 <div id="empDetail" class="fs">
   <div class="sub-head"><button class="icon-btn" onclick="closeEmpDetail()">‹</button><h2 id="edTitle">Fiche salarié</h2></div>
   <div id="edBody"></div>
+</div>
+
+<!-- ===================== RELEVÉ HEBDO À SIGNER PAR LE SALARIÉ ===================== -->
+<div id="empSign" class="fs">
+  <div class="sub-head"><button class="icon-btn" onclick="closeEmpSign()">‹</button><h2>Relevé de présence</h2></div>
+  <div id="empSignBody"></div>
 </div>
 
 <!-- ===================== FICHE SALARIÉ (modal) ===================== -->
@@ -598,7 +633,7 @@ const ARR_COLOR={present:"green",retard:"amber",absent:"red"};
 const POSTE_LABEL={laveur:"Laveur auto",technicien:"Technicien pare-brise"};
 const DEP_COLOR={parti:"green",avance:"blue",heuresup:"amber"};
 
-let employees=[], templates={}, overrides={}, records={}, validated={};
+let employees=[], templates={}, overrides={}, records={}, validated={}, weekSigs={};
 let viewDate=startOfToday();
 let currentEmp=null;
 
@@ -609,14 +644,16 @@ const sb=window.supabase.createClient(SB_URL, SB_KEY);
 
 /* ---- Chargement de toutes les données depuis le cloud ---- */
 async function loadAll(){
-  employees=[]; templates={}; overrides={}; records={}; validated={};
-  const [emp,ovr,rec,val]=await Promise.all([
+  employees=[]; templates={}; overrides={}; records={}; validated={}; weekSigs={};
+  const [emp,ovr,rec,val,wsig]=await Promise.all([
     sb.from("employees").select("*"),
     sb.from("overrides").select("*"),
     sb.from("records").select("*"),
-    sb.from("validations").select("*")
+    sb.from("validations").select("*"),
+    sb.from("week_signatures").select("*")
   ]);
   (val.data||[]).forEach(r=>{ validated[r.date]={signer:r.signer||"",signature:r.signature||"",snapshot:r.snapshot||null,validated_at:r.validated_at}; });
+  (wsig.data||[]).forEach(r=>{ (weekSigs[r.week]=weekSigs[r.week]||{})[r.emp_id]={signature:r.signature||"",signed_at:r.signed_at}; });
   (emp.data||[]).forEach(r=>{
     templates[r.id]=r.template||defaultTemplate();
     employees.push({id:r.id,prenom:r.prenom||"",nom:r.nom||"",tel:r.tel||"",email:r.email||"",matricule:r.matricule||"",poste:r.poste||"laveur",contrat:r.contrat||"",pause:(r.pause!=null?r.pause:"45"),archived:!!r.archived});
@@ -1271,13 +1308,15 @@ function renderRapport(){
   const sel=document.getElementById("repEmp"); const cur=sel.value;
   sel.innerHTML=actives().map(e=>`<option value="${e.id}">${escapeHtml(empName(e))}</option>`).join("");
   if(cur && [...sel.options].some(o=>o.value===cur)) sel.value=cur;
+  renderWeekSign();
   renderWeekRep();
   renderRapportList();
 }
 
-/* ----- Bulle 1 : heures de la semaine par salarié ----- */
+/* ----- Heures de la semaine par salarié ----- */
 let repWeekRef=startOfToday();
-function repWeek(d){ repWeekRef.setDate(repWeekRef.getDate()+d*7); renderWeekRep(); }
+function repWeek(d){ repWeekRef.setDate(repWeekRef.getDate()+d*7); renderWeekSign(); renderWeekRep(); }
+function weekKeyOf(){ return key(mondayOf(repWeekRef)); }
 function repEmpStep(d){ const sel=document.getElementById("repEmp"); const n=sel.options.length; if(!n) return; let i=sel.selectedIndex+d; if(i<0)i=n-1; if(i>=n)i=0; sel.selectedIndex=i; renderWeekRep(); }
 function fmtH(min){ if(min<=0) return "0 h 00"; const h=Math.floor(min/60), m=min%60; return h+" h "+String(m).padStart(2,"0"); }
 function weekRepRows(e){
@@ -1321,7 +1360,101 @@ function printWeekRep(){
   w.document.close(); setTimeout(()=>{try{w.print();}catch(e){}},350);
 }
 
-/* ----- Bulle 2 : rapports du jour (recherche par date) ----- */
+/* ----- Relevés à faire signer par les salariés ----- */
+function renderWeekSign(){
+  const cont=document.getElementById("weekSignList"); if(!cont) return;
+  const wk=weekKeyOf(), act=actives();
+  if(!act.length){ cont.innerHTML=`<p class="hint">Aucun salarié.</p>`; return; }
+  cont.innerHTML=act.map(e=>{
+    const r=weekRepRows(e); const signed=!!(weekSigs[wk] && weekSigs[wk][e.id]);
+    return `<div class="ws-row">
+      <div class="ws-main" onclick="openEmpSign('${e.id}')"><div class="ws-name">${escapeHtml(empName(e))}</div><div class="ws-tot">${fmtH(r.total)}</div></div>
+      <button class="ws-status ${signed?"ok":""}" onclick="openEmpSign('${e.id}')">${signed?"✓ Signé":"À signer"}</button>
+    </div>`;
+  }).join("");
+}
+function empSignDocHTML(e){
+  const r=weekRepRows(e), ws=r.ws, last=new Date(ws); last.setDate(ws.getDate()+6);
+  const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  const rows=r.rows.map(x=>`<tr><td>${x.day}</td><td>${escapeHtml(x.txt)}</td></tr>`).join("");
+  return `<div class="es-doc">
+    <div class="es-doc-title">Relevé de présence hebdomadaire</div>
+    <div class="es-doc-id"><b>${escapeHtml(empName(e))}</b>${e.matricule?` — matricule ${escapeHtml(e.matricule)}`:""}</div>
+    <div class="es-doc-period">Semaine ${period}</div>
+    <table class="es-table"><thead><tr><th>Jour</th><th>Présence</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="es-total">Total de la semaine : <b>${fmtH(r.total)}</b></div>
+    <p class="es-cert">Je soussigné(e) <b>${escapeHtml(empName(e))}</b> certifie exact le relevé de mes heures de présence pour la semaine indiquée ci-dessus.</p>
+  </div>`;
+}
+let empSignId=null, empSigPad=null;
+function openEmpSign(id){
+  empSignId=id; const e=employees.find(x=>x.id===id); if(!e) return;
+  const wk=weekKeyOf(), sig=weekSigs[wk] && weekSigs[wk][id];
+  document.getElementById("empSignBody").innerHTML=empSignDocHTML(e)+`
+    ${sig?`<div class="es-signed">✓ Déjà signé${sig.signed_at?` le ${new Date(sig.signed_at).toLocaleDateString("fr-FR")}`:""}</div>`:""}
+    <div class="es-sigzone">
+      <div class="val-sig-lbl">Signature du salarié (dans le cadre)</div>
+      <canvas id="empSigCanvas" class="sig-canvas"></canvas>
+      <button class="sig-clear" onclick="clearEmpSig()">Effacer</button>
+      <div class="form-error" id="empSignErr"></div>
+      <div class="es-actions">
+        <button class="ov-save" id="empSignSaveBtn" onclick="saveEmpSign()">Valider la signature</button>
+        <button class="btn-export" onclick="printEmpSign()">🖨️ Imprimer / PDF</button>
+      </div>
+    </div>`;
+  document.getElementById("empSign").classList.add("show"); window.scrollTo(0,0);
+  setTimeout(()=>{ empSigPad=initEmpPad(); },60);
+}
+function initEmpPad(){
+  const c=document.getElementById("empSigCanvas"); if(!c) return null;
+  const ratio=window.devicePixelRatio||1, rect=c.getBoundingClientRect();
+  c.width=rect.width*ratio; c.height=rect.height*ratio;
+  const ctx=c.getContext("2d"); ctx.scale(ratio,ratio); ctx.lineWidth=2.2; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.strokeStyle="#111827";
+  const pad={c,ctx,drawing:false,empty:true};
+  const pos=ev=>{ const r=c.getBoundingClientRect(); const t=ev.touches&&ev.touches[0]?ev.touches[0]:ev; return {x:t.clientX-r.left,y:t.clientY-r.top}; };
+  const start=ev=>{ ev.preventDefault(); pad.drawing=true; pad.empty=false; const p=pos(ev); ctx.beginPath(); ctx.moveTo(p.x,p.y); };
+  const move=ev=>{ if(!pad.drawing) return; ev.preventDefault(); const p=pos(ev); ctx.lineTo(p.x,p.y); ctx.stroke(); };
+  const end=()=>{ pad.drawing=false; };
+  c.onmousedown=start; c.onmousemove=move; window.onmouseup=end; c.ontouchstart=start; c.ontouchmove=move; c.ontouchend=end;
+  return pad;
+}
+function clearEmpSig(){ if(empSigPad){ empSigPad.ctx.clearRect(0,0,empSigPad.c.width,empSigPad.c.height); empSigPad.empty=true; } }
+function closeEmpSign(){ document.getElementById("empSign").classList.remove("show"); if(currentPage===5) renderWeekSign(); }
+async function saveEmpSign(){
+  const errEl=document.getElementById("empSignErr"); errEl.textContent="";
+  if(!empSigPad || empSigPad.empty){ errEl.textContent="Le salarié doit signer dans le cadre."; return; }
+  const wk=weekKeyOf(), signature=empSigPad.c.toDataURL("image/png"), at=new Date().toISOString();
+  const btn=document.getElementById("empSignSaveBtn"); btn.disabled=true; btn.textContent="Enregistrement…";
+  const {error}=await sb.from("week_signatures").upsert({week:wk,emp_id:empSignId,signature,signed_at:at});
+  btn.disabled=false; btn.textContent="Valider la signature";
+  if(error){ errEl.textContent="Erreur : "+error.message; return; }
+  if(!weekSigs[wk]) weekSigs[wk]={}; weekSigs[wk][empSignId]={signature,signed_at:at};
+  closeEmpSign();
+}
+function printEmpSign(){
+  const e=employees.find(x=>x.id===empSignId); if(!e) return;
+  const r=weekRepRows(e), ws=r.ws, last=new Date(ws); last.setDate(ws.getDate()+6);
+  const wk=weekKeyOf(), sig=weekSigs[wk] && weekSigs[wk][empSignId];
+  const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  const rows=r.rows.map(x=>`<tr><td>${esc(x.day)}</td><td>${esc(x.txt)}</td></tr>`).join("");
+  const w=window.open("","_blank"); if(!w){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Relevé ${esc(empName(e))}</title>
+    <style>body{font-family:Arial,sans-serif;color:#111;padding:34px;max-width:640px;margin:auto;}h1{font-size:20px;text-align:center;margin:0 0 18px;}
+    .id{font-size:15px;}.per{color:#555;margin:2px 0 16px;}table{width:100%;border-collapse:collapse;font-size:14px;}th,td{border:1px solid #bbb;padding:8px 10px;text-align:left;}th{background:#eee;}
+    .tot{margin-top:14px;font-size:16px;font-weight:bold;}.cert{margin-top:24px;font-size:13px;line-height:1.5;}.sign{margin-top:30px;font-size:13px;}.sign img{border-bottom:1px solid #000;max-width:260px;display:block;margin-top:6px;}.sline{border-bottom:1px solid #000;width:260px;height:60px;margin-top:6px;}</style></head>
+    <body><h1>Relevé de présence hebdomadaire</h1>
+    <div class="id"><b>${esc(empName(e))}</b>${e.matricule?" — matricule "+esc(e.matricule):""}</div>
+    <div class="per">Semaine ${esc(period)}</div>
+    <table><thead><tr><th>Jour</th><th>Présence</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="tot">Total de la semaine : ${fmtH(r.total)}</div>
+    <p class="cert">Je soussigné(e) <b>${esc(empName(e))}</b> certifie exact le relevé de mes heures de présence pour la semaine indiquée ci-dessus.</p>
+    <div class="sign">Signature du salarié :${sig?`<img src="${sig.signature}">`:`<div class="sline"></div>`}</div>
+    </body></html>`);
+  w.document.close(); setTimeout(()=>{try{w.print();}catch(e){}},350);
+}
+
+/* ----- Bulle : rapports du jour (recherche par date) ----- */
 function renderRapportList(){
   const wrap=document.getElementById("rapportList");
   const norm=s=>String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
