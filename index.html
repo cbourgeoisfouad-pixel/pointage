@@ -307,6 +307,30 @@
   .sync-warn.show{display:block;}
   .import-banner{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;background:var(--blue-bg);border:1px solid var(--blue);border-radius:12px;padding:12px;margin:12px;font-size:14px;color:var(--ink);}
   .import-banner button{background:var(--primary);color:#fff;border:none;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer;font-size:13px;}
+
+  /* signer la journée */
+  .modal{max-height:92vh;overflow-y:auto;}
+  .valid-banner{border-radius:12px;padding:12px 14px;margin:10px 4px 6px;font-size:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;}
+  .valid-banner.ready{background:var(--green-bg);border:1px solid var(--green);color:#065f46;}
+  .valid-banner.done{background:#eef2ff;border:1px solid var(--primary);color:#1e3a8a;}
+  .vb-btn{background:var(--green);color:#fff;border:none;border-radius:10px;padding:11px 16px;font-size:15px;font-weight:800;cursor:pointer;}
+  .vb-link{background:none;border:none;color:var(--primary);font-weight:700;cursor:pointer;text-decoration:underline;font-size:14px;}
+  #list.locked .person{pointer-events:none;opacity:.7;}
+  .val-field{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:12px;}
+  .val-field select{border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:16px;font-weight:600;color:var(--ink);background:#fff;}
+  .val-sig-lbl{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:6px;}
+  .sig-canvas{width:100%;height:170px;border:1.5px dashed var(--line);border-radius:12px;background:#fafafa;touch-action:none;display:block;}
+  .sig-clear{margin-top:8px;background:#f3f4f6;color:var(--muted);border:none;border-radius:9px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;}
+
+  /* page Rapport */
+  .rap-signer{color:var(--primary);font-weight:700;}
+  .rap-back{display:flex;align-items:center;gap:12px;background:#1f2937;color:#fff;padding:12px 14px;font-size:16px;font-weight:700;text-transform:capitalize;}
+  .rap-back button{background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer;flex:none;text-transform:none;}
+  .rap-jobs{background:var(--blue-bg);color:var(--blue);border-radius:999px;padding:4px 9px;font-size:12px;font-weight:700;}
+  .rap-sign-block{background:var(--card);border-radius:12px;padding:14px;margin:14px 12px;}
+  .rap-sign-lbl{font-size:14px;margin-bottom:8px;}
+  .rap-sign-img{border:1px solid var(--line);border-radius:8px;max-width:260px;background:#fff;}
+  .rap-actions{padding:0 12px calc(24px + var(--safe-bottom));}
 </style>
 </head>
 <body>
@@ -408,7 +432,14 @@
   <div id="empCards" class="emp-cards"></div>
   <div class="add-emp-bar"><button class="btn-add-emp" onclick="openEmpForm(null)">＋ Ajouter un salarié</button></div>
 </section>
-<section class="page" id="page5"><div class="page-empty"><div class="pe-num">Rapport</div><p>Page vide — on la construira plus tard (validation de journée + historique).</p></div></section>
+<section class="page" id="page5">
+  <div class="week-head"><div class="week-label">Rapport</div></div>
+  <div id="rapportList"></div>
+  <div id="rapportDetail" style="display:none;">
+    <div class="rap-back"><button onclick="backRapport()">‹ Retour</button> <span id="rapTitle"></span></div>
+    <div id="rapBody"></div>
+  </div>
+</section>
 
 <!-- ===================== MENU ÉDITION HORAIRE (modal) ===================== -->
 <div id="modalOverlay" class="modal-overlay" onclick="closeSchedule()"></div>
@@ -468,6 +499,24 @@
   </div>
 </div>
 
+<!-- ===================== SIGNER LA JOURNÉE (modal) ===================== -->
+<div id="valOverlay" class="modal-overlay" onclick="closeValidate()"></div>
+<div id="validateModal" class="modal">
+  <div class="modal-title">Signer la journée</div>
+  <div class="modal-sub" id="valDate"></div>
+  <label class="val-field">Qui valide la journée ?
+    <select id="valSigner"></select>
+  </label>
+  <div class="val-sig-lbl">Signature (signe dans le cadre avec le doigt)</div>
+  <canvas id="sigCanvas" class="sig-canvas"></canvas>
+  <button class="sig-clear" onclick="clearSig()">Effacer</button>
+  <div class="form-error" id="valErr"></div>
+  <div class="modal-actions">
+    <button class="ov-reset" onclick="closeValidate()">Annuler</button>
+    <button class="ov-save" id="valSaveBtn" onclick="saveValidate()">Valider et figer la journée</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 /* =========================================================
@@ -493,6 +542,7 @@ function goPage(n){
   if(n===2) renderWeek();
   if(n===3) renderBase();
   if(n===4) renderEmployees();
+  if(n===5) renderRapport();
   window.scrollTo(0,0);
 }
 function openDrawer(){ document.getElementById("drawer").classList.add("open"); document.getElementById("overlay").classList.add("show"); }
@@ -512,7 +562,7 @@ const ARR_COLOR={present:"green",retard:"amber",absent:"red"};
 const POSTE_LABEL={laveur:"Laveur auto",technicien:"Technicien pare-brise"};
 const DEP_COLOR={parti:"green",avance:"blue",heuresup:"amber"};
 
-let employees=[], templates={}, overrides={}, records={};
+let employees=[], templates={}, overrides={}, records={}, validated={};
 let viewDate=startOfToday();
 let currentEmp=null;
 
@@ -523,12 +573,14 @@ const sb=window.supabase.createClient(SB_URL, SB_KEY);
 
 /* ---- Chargement de toutes les données depuis le cloud ---- */
 async function loadAll(){
-  employees=[]; templates={}; overrides={}; records={};
-  const [emp,ovr,rec]=await Promise.all([
+  employees=[]; templates={}; overrides={}; records={}; validated={};
+  const [emp,ovr,rec,val]=await Promise.all([
     sb.from("employees").select("*"),
     sb.from("overrides").select("*"),
-    sb.from("records").select("*")
+    sb.from("records").select("*"),
+    sb.from("validations").select("*")
   ]);
+  (val.data||[]).forEach(r=>{ validated[r.date]={signer:r.signer||"",signature:r.signature||"",snapshot:r.snapshot||null,validated_at:r.validated_at}; });
   (emp.data||[]).forEach(r=>{
     templates[r.id]=r.template||defaultTemplate();
     employees.push({id:r.id,prenom:r.prenom||"",nom:r.nom||"",tel:r.tel||"",email:r.email||"",matricule:r.matricule||"",poste:r.poste||"laveur",contrat:r.contrat||"",pause:(r.pause!=null?r.pause:"45"),archived:!!r.archived});
@@ -582,13 +634,23 @@ function renderHome(){
   document.getElementById("bigDate").textContent=frDate(viewDate);
   document.getElementById("todayBtn").style.display=isToday(viewDate)?"none":"inline-block";
   const list=document.getElementById("list");
+  const isVal=!!validated[dk];
+  list.classList.toggle("locked", isVal);
   if(actives().length===0){
+    list.classList.remove("locked");
     list.innerHTML=`<div class="empty"><p>Aucun salarié actif pour l'instant.<br>Ajoute ton équipe pour commencer.</p>
       <button class="btn-primary" onclick="goPage(4)">＋ Ajouter les salariés</button></div>`; return;
   }
   const working=[], repos=[];
   actives().forEach(e=>{ (planned(dk,e.id).work?working:repos).push(e); });
-  let html="";
+  let banner="";
+  if(isVal){
+    const v=validated[dk];
+    banner=`<div class="valid-banner done">✓ Journée validée${v.signer?` par <b>${escapeHtml(v.signer)}</b>`:""} <button class="vb-link" onclick="goPage(5)">Voir le rapport</button></div>`;
+  } else if(working.length>0 && working.every(e=>dayDone(records[dk]&&records[dk][e.id]))){
+    banner=`<div class="valid-banner ready"><div>✅ <b>Journée complète</b> — tout le monde est pointé.</div><button class="vb-btn" onclick="openValidate()">✍️ Signer la journée</button></div>`;
+  }
+  let html=banner;
   if(working.length===0){
     html+=`<div class="empty"><p>Personne de prévu ${isToday(viewDate)?"aujourd'hui":"ce jour"}.</p></div>`;
   } else {
@@ -1114,6 +1176,113 @@ async function importLocal(){
   if(recRows.length){ r=await sb.from("records").upsert(recRows); if(r.error){ alert("Erreur import pointages : "+r.error.message); return; } }
   await loadAll(); maybeOfferImport(); goPage(4);
   alert("Import terminé ! Tes données sont maintenant en ligne et visibles sur tous tes appareils.");
+}
+
+/* =========================================================
+   VALIDATION / SIGNATURE DE JOURNÉE → page « Rapport »
+   ========================================================= */
+const SIGNERS=["Personne 1","Personne 2"];
+function dayLocked(dk){ return !!validated[dk]; }
+function buildSnapshot(dk){
+  const rows=[];
+  actives().forEach(e=>{ const p=planned(dk,e.id); if(!p.work) return; const en=(records[dk]&&records[dk][e.id])||{};
+    rows.push({nom:empName(e),matricule:e.matricule||"",poste:e.poste||"laveur",planArr:p.arr||"",planDep:p.dep||"",
+      arrStatus:en.arrStatus||"",arrTime:en.arrTime||"",retardMin:en.retardMin||0,absMotif:en.absMotif||"",
+      depStatus:en.depStatus||"",depTime:en.depTime||"",hsMin:en.hsMin||0,nbJobs:en.nbJobs||""}); });
+  return {date:dk,rows};
+}
+let sigPad=null;
+function openValidate(){
+  document.getElementById("valDate").textContent=frDate(viewDate);
+  document.getElementById("valSigner").innerHTML=SIGNERS.map(s=>`<option value="${escapeAttr(s)}">${escapeHtml(s)}</option>`).join("");
+  document.getElementById("valErr").textContent="";
+  document.getElementById("valOverlay").classList.add("show");
+  document.getElementById("validateModal").classList.add("show");
+  setTimeout(initSigPad,60);
+}
+function closeValidate(){ document.getElementById("valOverlay").classList.remove("show"); document.getElementById("validateModal").classList.remove("show"); }
+function initSigPad(){
+  const c=document.getElementById("sigCanvas"); if(!c) return;
+  const ratio=window.devicePixelRatio||1, rect=c.getBoundingClientRect();
+  c.width=rect.width*ratio; c.height=rect.height*ratio;
+  const ctx=c.getContext("2d"); ctx.scale(ratio,ratio); ctx.lineWidth=2.2; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.strokeStyle="#111827";
+  sigPad={c,ctx,drawing:false,empty:true};
+  const pos=ev=>{ const r=c.getBoundingClientRect(); const t=ev.touches&&ev.touches[0]?ev.touches[0]:ev; return {x:t.clientX-r.left,y:t.clientY-r.top}; };
+  const start=ev=>{ ev.preventDefault(); sigPad.drawing=true; sigPad.empty=false; const p=pos(ev); ctx.beginPath(); ctx.moveTo(p.x,p.y); };
+  const move=ev=>{ if(!sigPad.drawing) return; ev.preventDefault(); const p=pos(ev); ctx.lineTo(p.x,p.y); ctx.stroke(); };
+  const end=()=>{ sigPad.drawing=false; };
+  c.onmousedown=start; c.onmousemove=move; window.onmouseup=end;
+  c.ontouchstart=start; c.ontouchmove=move; c.ontouchend=end;
+}
+function clearSig(){ if(sigPad){ sigPad.ctx.clearRect(0,0,sigPad.c.width,sigPad.c.height); sigPad.empty=true; } }
+async function saveValidate(){
+  const dk=key(viewDate), signer=document.getElementById("valSigner").value, errEl=document.getElementById("valErr");
+  errEl.textContent="";
+  if(!sigPad || sigPad.empty){ errEl.textContent="Merci de signer dans le cadre."; return; }
+  const signature=sigPad.c.toDataURL("image/png"), snapshot=buildSnapshot(dk);
+  const btn=document.getElementById("valSaveBtn"); btn.disabled=true; btn.textContent="Validation…";
+  const at=new Date().toISOString();
+  const {error}=await sb.from("validations").upsert({date:dk,signer,signature,snapshot,validated_at:at});
+  btn.disabled=false; btn.textContent="Valider et figer la journée";
+  if(error){ errEl.textContent="Erreur : "+error.message; return; }
+  validated[dk]={signer,signature,snapshot,validated_at:at};
+  closeValidate(); renderHome();
+}
+
+function renderRapport(){
+  const wrap=document.getElementById("rapportList");
+  document.getElementById("rapportDetail").style.display="none"; wrap.style.display="block";
+  const days=Object.keys(validated).sort().reverse();
+  if(days.length===0){ wrap.innerHTML=`<p class="hint">Aucune journée validée pour l'instant.<br>Une fois tous les salariés pointés, signe la journée depuis « Pointage quotidien ».</p>`; return; }
+  wrap.innerHTML=days.map(k=>{
+    const v=validated[k], snap=v.snapshot||{rows:[]};
+    let nP=0,nR=0,nA=0; (snap.rows||[]).forEach(r=>{ if(r.arrStatus==="present")nP++; else if(r.arrStatus==="retard")nR++; else if(r.arrStatus==="absent")nA++; });
+    return `<div class="hist-day" onclick="openRapport('${k}')"><div>
+      <div class="d">${frDate(parseKey(k))}</div>
+      <div class="mini"><span class="chip g">✓ ${nP}</span><span class="chip am">⏱ ${nR}</span><span class="chip r">✕ ${nA}</span><span class="rap-signer">✍️ ${escapeHtml(v.signer||"")}</span></div>
+      </div><div style="color:var(--muted);font-size:22px;">›</div></div>`;
+  }).join("");
+}
+function openRapport(dk){
+  const v=validated[dk]; if(!v) return; const snap=v.snapshot||{rows:[]};
+  document.getElementById("rapTitle").textContent=frDate(parseKey(dk));
+  const rows=(snap.rows||[]).map(r=>{
+    const arr = r.arrStatus==="absent" ? `<span class="badge red">Absent${r.absMotif?" — "+absLabel(r.absMotif):""}</span>` :
+                r.arrStatus ? `<span class="badge ${ARR_COLOR[r.arrStatus]||"none"}">${ARR_LABEL[r.arrStatus]||""}${r.arrTime?" "+r.arrTime:""}</span>` : `<span class="badge none">—</span>`;
+    const dep = r.arrStatus==="absent" ? "" : (r.depStatus ? `<span class="badge ${DEP_COLOR[r.depStatus]||"none"}">${DEP_LABEL[r.depStatus]||""}${r.depTime?" "+r.depTime:""}</span>` : `<span class="badge none">—</span>`);
+    const jobs = r.poste==="technicien" ? `<span class="rap-jobs">${r.nbJobs||0} job(s)</span>` : "";
+    return `<div class="detail-row"><span class="dn">${escapeHtml(r.nom)}</span><span class="detail-vals">${arr}${dep}${jobs}</span></div>`;
+  }).join("");
+  document.getElementById("rapBody").innerHTML=`
+    <div class="detail-head">Pointages figés de la journée</div>
+    ${rows||'<p class="hint">Aucun salarié.</p>'}
+    <div class="rap-sign-block"><div class="rap-sign-lbl">Validé par <b>${escapeHtml(v.signer||"")}</b></div>
+      ${v.signature?`<img class="rap-sign-img" src="${v.signature}" alt="signature">`:""}</div>
+    <div class="rap-actions"><button class="btn-export" onclick="printRapport('${dk}')">🖨️ Imprimer / Enregistrer en PDF</button></div>`;
+  document.getElementById("rapportList").style.display="none";
+  document.getElementById("rapportDetail").style.display="block";
+  window.scrollTo(0,0);
+}
+function backRapport(){ document.getElementById("rapportDetail").style.display="none"; document.getElementById("rapportList").style.display="block"; }
+function printRapport(dk){
+  const v=validated[dk]; if(!v) return; const snap=v.snapshot||{rows:[]};
+  const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const rowsHtml=(snap.rows||[]).map(r=>{
+    const arr = r.arrStatus==="absent" ? "Absent"+(r.absMotif?" ("+absLabel(r.absMotif)+")":"") : (r.arrStatus?((ARR_LABEL[r.arrStatus]||"")+(r.arrTime?" — "+r.arrTime:"")):"—");
+    const dep = r.arrStatus==="absent" ? "—" : (r.depStatus?((DEP_LABEL[r.depStatus]||"")+(r.depTime?" — "+r.depTime:"")):"—");
+    const jobs = r.poste==="technicien" ? (r.nbJobs||0) : "";
+    return `<tr><td>${esc(r.nom)}</td><td>${esc(r.matricule)}</td><td>${esc(arr)}</td><td>${esc(dep)}</td><td style="text-align:center">${jobs}</td></tr>`;
+  }).join("");
+  const w=window.open("","_blank"); if(!w){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Rapport ${esc(frDate(parseKey(dk)))}</title>
+    <style>body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:26px;} h1{font-size:19px;margin:0 0 2px;} .sub{color:#555;margin-bottom:18px;text-transform:capitalize;}
+    table{width:100%;border-collapse:collapse;font-size:13px;} th,td{border:1px solid #bbb;padding:7px 9px;text-align:left;} th{background:#eee;}
+    .sign{margin-top:30px;font-size:14px;} .sign img{border:1px solid #ccc;border-radius:8px;max-width:280px;display:block;margin-top:8px;}</style></head>
+    <body><h1>Rapport de pointage</h1><div class="sub">${esc(frDate(parseKey(dk)))}</div>
+    <table><thead><tr><th>Salarié</th><th>Matricule</th><th>Arrivée</th><th>Sortie</th><th>Jobs</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+    <div class="sign">Journée validée par <b>${esc(v.signer)}</b>${v.signature?`<img src="${v.signature}">`:""}</div>
+    </body></html>`);
+  w.document.close(); setTimeout(()=>{ try{w.print();}catch(e){} },350);
 }
 
 /* démarrage */
