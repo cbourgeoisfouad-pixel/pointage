@@ -107,6 +107,10 @@
   .slot-foot{margin-top:8px;font-size:14px;font-weight:600;}
   .slot-foot.ok{color:var(--green);}
   .slot-foot input[type="time"]{border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font-size:15px;font-weight:700;color:var(--ink);}
+  .slot-foot.retard-pick{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .slot-foot.retard-pick select{border:1.5px solid var(--line);border-radius:9px;padding:9px 10px;font-size:15px;font-weight:700;color:var(--ink);background:#fff;}
+  .ret-ok{background:var(--primary);color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;}
+  .ret-done{color:var(--green);font-weight:700;font-size:13px;}
   .slot-foot label{color:var(--muted);font-size:13px;margin-right:6px;}
 
   .repos{background:#eef1f4;border-radius:12px;padding:12px;color:var(--muted);font-size:14px;line-height:1.5;}
@@ -418,7 +422,7 @@ function planned(dk,id){
 }
 function recEntry(dk,id){
   if(!records[dk]) records[dk]={};
-  if(!records[dk][id]) records[dk][id]={arrStatus:"",arrTime:"",depStatus:"",depTime:""};
+  if(!records[dk][id]) records[dk][id]={arrStatus:"",arrTime:"",retardMin:0,depStatus:"",depTime:""};
   return records[dk][id];
 }
 
@@ -460,18 +464,33 @@ function renderHome(){
   list.innerHTML=html;
 }
 
-function card(dk,e,isNow){
+const RETARD_OPTS=[[30,"30 min"],[60,"1 heure"],[90,"1 h 30"],[120,"2 heures"],[150,"2 h 30"]];
+function retardLabel(min){ const o=RETARD_OPTS.find(x=>x[0]===min); return o?o[1]:(min+" min"); }
+
+function cardInner(dk,e){
   const p=planned(dk,e.id), en=recEntry(dk,e.id);
+  let arrFoot="";
+  if(en.arrStatus==="present"){
+    arrFoot=`<div class="slot-foot ok">✓ Pointé à ${en.arrTime||p.arr||"—"}</div>`;
+  } else if(en.arrStatus==="retard"){
+    arrFoot=`<div class="slot-foot retard-pick">
+        <label>Retard de</label>
+        <select id="retSel-${e.id}">
+          ${RETARD_OPTS.map(([v,l])=>`<option value="${v}" ${(en.retardMin||30)===v?"selected":""}>${l}</option>`).join("")}
+        </select>
+        <button class="ret-ok" onclick="okRetard('${e.id}')">OK</button>
+        ${en.retardMin>0?`<span class="ret-done">✓ ${retardLabel(en.retardMin)}${en.arrTime?` — arrivé ${en.arrTime}`:""}</span>`:""}
+      </div>`;
+  }
   const arrBlock=`
     <div class="slot">
       <div class="slot-head"><span class="lbl">Arrivée</span><span class="plan ${p.arr?"":"none"}">${p.arr||"—"}</span></div>
       <div class="qbtns">
-        <button class="${en.arrStatus==="present"?"sel green":""}" onclick="setArr('${e.id}','present')">✓ Arrivé</button>
-        <button class="${en.arrStatus==="retard"?"sel amber":""}" onclick="setArr('${e.id}','retard')">Retard</button>
-        <button class="${en.arrStatus==="absent"?"sel red":""}" onclick="setArr('${e.id}','absent')">Absent</button>
+        <button class="${en.arrStatus==="present"?"sel green":""}" onclick="markArr('${e.id}','present',this)">✓ Arrivé</button>
+        <button class="${en.arrStatus==="retard"?"sel amber":""}" onclick="markArr('${e.id}','retard',this)">Retard</button>
+        <button class="${en.arrStatus==="absent"?"sel red":""}" onclick="markArr('${e.id}','absent',this)">Absent</button>
       </div>
-      ${en.arrStatus==="present"?`<div class="slot-foot ok">✓ Pointé à ${en.arrTime||p.arr||"—"}</div>`:""}
-      ${en.arrStatus==="retard"?`<div class="slot-foot"><label>Arrivé à</label><input type="time" value="${en.arrTime||p.arr||""}" onchange="setArrTime('${e.id}',this.value)"></div>`:""}
+      ${arrFoot}
     </div>`;
   const depBlock = en.arrStatus==="absent" ? "" : `
     <div class="slot">
@@ -484,22 +503,37 @@ function card(dk,e,isNow){
       ${en.depStatus==="parti"?`<div class="slot-foot ok">✓ Pointé à ${en.depTime||p.dep||"—"}</div>`:""}
       ${(en.depStatus==="avance"||en.depStatus==="retard")?`<div class="slot-foot"><label>Parti à</label><input type="time" value="${en.depTime||p.dep||""}" onchange="setDepTime('${e.id}',this.value)"></div>`:""}
     </div>`;
-  return `<div class="person ${isNow?"now":""}">
-    <div class="p-head"><span class="p-name">${escapeHtml(e.name)}</span>
+  return `<div class="p-head"><span class="p-name">${escapeHtml(e.name)}</span>
       <button class="edit-day" onclick="openSchedule('${e.id}','${dk}')">✎ horaire du jour</button></div>
-    ${arrBlock}${depBlock}</div>`;
+    ${arrBlock}${depBlock}`;
 }
+function card(dk,e,isNow){ return `<div class="person ${isNow?"now":""}">${cardInner(dk,e)}</div>`; }
 
-function setArr(id,status){
+function markArr(id,status,btn){
   const dk=key(viewDate), en=recEntry(dk,id), p=planned(dk,id);
-  if(en.arrStatus===status){ en.arrStatus=""; en.arrTime=""; }
-  else{ en.arrStatus=status;
-    if(status==="present") en.arrTime=p.arr||"";
-    else if(status==="absent"){ en.arrTime=""; en.depStatus=""; en.depTime=""; }
-    else if(status==="retard") en.arrTime=en.arrTime||p.arr||""; }
+  const e=employees.find(x=>x.id===id);
+  const personEl=btn?btn.closest(".person"):null;
+  // re-cliquer le même bouton = annuler
+  if(en.arrStatus===status){ en.arrStatus=""; en.arrTime=""; en.retardMin=0; saveAll(); renderHome(); return; }
+  en.arrStatus=status;
+  if(status==="present"){ en.arrTime=p.arr||""; en.retardMin=0; }
+  else if(status==="absent"){ en.arrTime=""; en.retardMin=0; en.depStatus=""; en.depTime=""; }
+  else if(status==="retard"){ en.arrTime=en.arrTime||""; } // garde la durée déjà choisie
+  saveAll();
+  // mise à jour visuelle immédiate de CETTE carte, sans la déplacer
+  if(personEl) personEl.innerHTML=cardInner(dk,e);
+  // « Présent »/« Absent » : la carte ne descend qu'une demi-seconde après
+  if(status==="present"||status==="absent") setTimeout(renderHome,500);
+}
+function okRetard(id){
+  const dk=key(viewDate), en=recEntry(dk,id), p=planned(dk,id);
+  const sel=document.getElementById("retSel-"+id);
+  en.retardMin=sel?(parseInt(sel.value,10)||0):(en.retardMin||0);
+  const pm=toMin(p.arr);
+  if(pm!=null){ const t=pm+en.retardMin; en.arrTime=String(Math.floor(t/60)%24).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); }
+  if(!en.arrStatus) en.arrStatus="retard";
   saveAll(); renderHome();
 }
-function setArrTime(id,v){ recEntry(key(viewDate),id).arrTime=v; saveAll(); }
 function setDep(id,status){
   const dk=key(viewDate), en=recEntry(dk,id), p=planned(dk,id);
   if(en.depStatus===status){ en.depStatus=""; en.depTime=""; }
