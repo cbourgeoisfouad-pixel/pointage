@@ -223,6 +223,31 @@
   .modal-actions{display:flex;gap:8px;margin-top:14px;}
   .modal-actions button{flex:1;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;}
   .modal-note{color:var(--muted);font-size:12px;text-align:center;margin-top:10px;}
+
+  /* ===================== ÉDITEUR HORAIRES PLEIN ÉCRAN ===================== */
+  .fs{position:fixed;inset:0;z-index:78;background:var(--bg);overflow-y:auto;display:none;padding-bottom:calc(24px + var(--safe-bottom));}
+  .fs.show{display:block;}
+  .fs .sub-head{top:0;padding-top:calc(var(--safe-top) + 12px);}
+
+  /* ===================== PAGE 4 : SALARIÉS ===================== */
+  .emp-cards{padding:12px;}
+  .emp-card{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .emp-main{flex:1;min-width:0;}
+  .emp-nom{font-size:17px;font-weight:700;}
+  .emp-meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:3px;font-size:13px;color:var(--muted);font-weight:600;}
+  .emp-meta .mat{color:var(--ink);}
+  .emp-meta i{color:var(--muted);font-style:italic;}
+  .emp-actions{display:flex;gap:6px;flex:none;}
+  .emp-actions button{width:38px;height:38px;border:none;border-radius:9px;font-size:16px;cursor:pointer;padding:0;display:grid;place-items:center;}
+  .edit-emp{background:#eef1f4;color:var(--ink);}
+  .add-emp-bar{padding:4px 12px calc(24px + var(--safe-bottom));}
+  .btn-add-emp{width:100%;background:var(--primary);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700;cursor:pointer;}
+
+  /* champs fiche salarié */
+  .form-fields{display:flex;flex-direction:column;gap:12px;}
+  .form-fields label{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:700;color:var(--muted);}
+  .form-fields input{border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:16px;color:var(--ink);font-weight:600;}
+  .form-fields input:focus{outline:none;border-color:var(--primary);}
 </style>
 </head>
 <body>
@@ -258,38 +283,11 @@
         </div>
         <div class="btn-stack">
           <button class="icon-btn" onclick="showHistory()" title="Historique">🗓</button>
-          <button class="icon-btn" onclick="showSettings()" title="Réglages">⚙️</button>
+          <button class="icon-btn" onclick="goPage(4)" title="Salariés">👤</button>
         </div>
       </div>
     </header>
     <main id="list"></main>
-  </div>
-
-  <div id="settings" class="screen">
-    <div class="sub-head"><button class="icon-btn" onclick="showHome()">‹</button><h2>Les salariés</h2></div>
-    <div class="settings-list" id="empList"></div>
-    <div class="add-row">
-      <input id="newEmp" type="text" placeholder="Nom du salarié" autocomplete="off">
-      <button class="add-btn" onclick="addEmp()">+</button>
-    </div>
-    <p class="hint">Touche « Horaires » pour régler la semaine type d'un salarié (entrée une seule fois, elle se répète chaque semaine).</p>
-  </div>
-
-  <div id="template" class="screen">
-    <div class="sub-head"><button class="icon-btn" onclick="showSettings()">‹</button><h2 id="tplTitle">Horaires</h2></div>
-    <div class="preset">
-      <div class="row">
-        <span class="hint2">Remplissage rapide :</span>
-        <input type="time" id="presetArr" value="08:00"> <span class="arrow">→</span>
-        <input type="time" id="presetDep" value="17:00">
-      </div>
-      <div class="row">
-        <button class="pbtn" onclick="applyPreset([1,2,3,4,5])">Appliquer Lun→Ven</button>
-        <button class="pbtn" onclick="applyPreset([1,2,3,4,5,6,0])">Tous les jours</button>
-      </div>
-    </div>
-    <div id="tplDays"></div>
-    <p class="hint">Décoche un jour pour « repos ». Tu peux mettre une heure différente chaque jour.</p>
   </div>
 
   <div id="history" class="screen">
@@ -326,7 +324,11 @@
   <div class="week-wrap" id="baseWrap"></div>
   <p class="hint">Touche une case pour régler l'horaire habituel d'un jour. Pour un changement ponctuel sur une semaine donnée, utilise « Plannings semaine ».</p>
 </section>
-<section class="page" id="page4"><div class="page-empty"><div class="pe-num">Page 4</div><p>Page vide — on la construira plus tard.</p></div></section>
+<section class="page" id="page4">
+  <div class="week-head"><div class="week-label">Salariés</div></div>
+  <div id="empCards" class="emp-cards"></div>
+  <div class="add-emp-bar"><button class="btn-add-emp" onclick="openEmpForm(null)">＋ Ajouter un salarié</button></div>
+</section>
 <section class="page" id="page5"><div class="page-empty"><div class="pe-num">Page 5</div><p>Page vide — on la construira plus tard.</p></div></section>
 
 <!-- ===================== MENU ÉDITION HORAIRE (modal) ===================== -->
@@ -342,11 +344,45 @@
   <p class="modal-note" id="schedNote">Ne change que ce jour précis. La semaine de référence n'est pas modifiée.</p>
 </div>
 
+<!-- ===================== ÉDITEUR HORAIRES (plein écran) ===================== -->
+<div id="template" class="fs">
+  <div class="sub-head"><button class="icon-btn" onclick="closeTemplate()">‹</button><h2 id="tplTitle">Horaires</h2></div>
+  <div class="preset">
+    <div class="row">
+      <span class="hint2">Remplissage rapide :</span>
+      <input type="time" id="presetArr" value="08:00"> <span class="arrow">→</span>
+      <input type="time" id="presetDep" value="17:00">
+    </div>
+    <div class="row">
+      <button class="pbtn" onclick="applyPreset([1,2,3,4,5])">Appliquer Lun→Ven</button>
+      <button class="pbtn" onclick="applyPreset([1,2,3,4,5,6,0])">Tous les jours</button>
+    </div>
+  </div>
+  <div id="tplDays"></div>
+  <p class="hint">Décoche un jour pour « repos ». Tu peux mettre une heure différente chaque jour.</p>
+</div>
+
+<!-- ===================== FICHE SALARIÉ (modal) ===================== -->
+<div id="empOverlay" class="modal-overlay" onclick="closeEmpForm()"></div>
+<div id="empModal" class="modal">
+  <div class="modal-title" id="empModalTitle">Nouveau salarié</div>
+  <div class="form-fields">
+    <label>Prénom<input id="fPrenom" type="text" autocomplete="off"></label>
+    <label>Nom<input id="fNom" type="text" autocomplete="off"></label>
+    <label>Téléphone<input id="fTel" type="tel" inputmode="tel" autocomplete="off"></label>
+    <label>N° de matricule<input id="fMat" type="text" autocomplete="off"></label>
+  </div>
+  <div class="modal-actions">
+    <button class="ov-reset" onclick="closeEmpForm()">Annuler</button>
+    <button class="ov-save" onclick="saveEmpForm()">Enregistrer</button>
+  </div>
+</div>
+
 <script>
 /* =========================================================
    NAVIGATION GLOBALE (5 pages)
    ========================================================= */
-const PAGES=["Pointage quotidien","Plannings semaine","Semaine de référence","Page 4","Page 5"];
+const PAGES=["Pointage quotidien","Plannings semaine","Semaine de référence","Salariés","Page 5"];
 let currentPage=1;
 
 (function buildNav(){
@@ -365,6 +401,7 @@ function goPage(n){
   if(n===1) showHome();
   if(n===2) renderWeek();
   if(n===3) renderBase();
+  if(n===4) renderEmployees();
   window.scrollTo(0,0);
 }
 function openDrawer(){ document.getElementById("drawer").classList.add("open"); document.getElementById("overlay").classList.add("show"); }
@@ -377,7 +414,7 @@ const K_EMP="pointage_employees", K_TPL="pointage_templates", K_OVR="pointage_ov
 
 const JOURS_C=["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
 const ORDRE=[1,2,3,4,5,6,0];
-const DEFAULT_EMP=["Mathieu Garnier","Karim Benali","David Lefèbvre","Thomas Moreau","Sofiane Andrieu"];
+const DEFAULT_EMP=[{prenom:"Mathieu",nom:"Garnier"},{prenom:"Karim",nom:"Benali"},{prenom:"David",nom:"Lefèbvre"},{prenom:"Thomas",nom:"Moreau"},{prenom:"Sofiane",nom:"Andrieu"}];
 const ARR_LABEL={present:"Présent",retard:"En retard",absent:"Absent"};
 const DEP_LABEL={parti:"Parti",avance:"Parti en avance",retard:"Parti en retard"};
 const ARR_COLOR={present:"green",retard:"amber",absent:"red"};
@@ -391,7 +428,7 @@ let viewDate=startOfToday();
 let currentEmp=null;
 
 if(employees===null){
-  if(!localStorage.getItem(K_SEED)){ employees=DEFAULT_EMP.map(n=>({id:uid(),name:n})); localStorage.setItem(K_SEED,"1"); }
+  if(!localStorage.getItem(K_SEED)){ employees=DEFAULT_EMP.map(d=>({id:uid(),nom:d.nom,prenom:d.prenom,tel:"",matricule:""})); localStorage.setItem(K_SEED,"1"); }
   else { employees=[]; }
 }
 employees.forEach(e=>ensureTemplate(e.id));
@@ -437,7 +474,7 @@ function renderHome(){
   const list=document.getElementById("list");
   if(employees.length===0){
     list.innerHTML=`<div class="empty"><p>Aucun salarié pour l'instant.<br>Ajoute ton équipe pour commencer.</p>
-      <button class="btn-primary" onclick="showSettings()">＋ Ajouter les salariés</button></div>`; return;
+      <button class="btn-primary" onclick="goPage(4)">＋ Ajouter les salariés</button></div>`; return;
   }
   const working=[], repos=[];
   employees.forEach(e=>{ (planned(dk,e.id).work?working:repos).push(e); });
@@ -460,7 +497,7 @@ function renderHome(){
   } else {
     html+=`<div class="section-title">Prévus ce jour</div>`+working.map(e=>card(dk,e,false)).join("");
   }
-  if(repos.length) html+=`<div class="section-title">😴 Repos</div><div class="repos">`+repos.map(e=>`<b>${escapeHtml(e.name)}</b>`).join(" · ")+`</div>`;
+  if(repos.length) html+=`<div class="section-title">😴 Repos</div><div class="repos">`+repos.map(e=>`<b>${escapeHtml(empName(e))}</b>`).join(" · ")+`</div>`;
   list.innerHTML=html;
 }
 
@@ -503,7 +540,7 @@ function cardInner(dk,e){
       ${en.depStatus==="parti"?`<div class="slot-foot ok">✓ Pointé à ${en.depTime||p.dep||"—"}</div>`:""}
       ${(en.depStatus==="avance"||en.depStatus==="retard")?`<div class="slot-foot"><label>Parti à</label><input type="time" value="${en.depTime||p.dep||""}" onchange="setDepTime('${e.id}',this.value)"></div>`:""}
     </div>`;
-  return `<div class="p-head"><span class="p-name">${escapeHtml(e.name)}</span>
+  return `<div class="p-head"><span class="p-name">${escapeHtml(empName(e))}</span>
       <button class="edit-day" onclick="openSchedule('${e.id}','${dk}')">✎ horaire du jour</button></div>
     ${arrBlock}${depBlock}`;
 }
@@ -542,24 +579,56 @@ function setDep(id,status){
 }
 function setDepTime(id,v){ recEntry(key(viewDate),id).depTime=v; saveAll(); }
 
-function renderSettings(){
-  const c=document.getElementById("empList");
-  if(employees.length===0){ c.innerHTML=`<p class="hint">La liste est vide. Ajoute un premier salarié ci-dessous.</p>`; return; }
+/* ----- Page 4 : Salariés (fiches) ----- */
+function renderEmployees(){
+  const c=document.getElementById("empCards");
+  if(employees.length===0){ c.innerHTML=`<p class="hint">Aucun salarié pour l'instant. Touche « Ajouter un salarié » ci-dessous.</p>`; return; }
   c.innerHTML=employees.map(e=>`
-    <div class="emp-row">
-      <input class="nm" type="text" value="${escapeAttr(e.name)}" onchange="renameEmp('${e.id}',this.value)">
-      <button class="hours-btn" onclick="openTemplate('${e.id}')">🕗 Horaires</button>
-      <button class="del-btn" onclick="delEmp('${e.id}')">🗑</button>
+    <div class="emp-card">
+      <div class="emp-main">
+        <div class="emp-nom">${escapeHtml(empName(e))}</div>
+        <div class="emp-meta">
+          <span class="mat">🆔 ${e.matricule?escapeHtml(e.matricule):"<i>matricule —</i>"}</span>
+          ${e.tel?`<span>📞 ${escapeHtml(e.tel)}</span>`:""}
+        </div>
+      </div>
+      <div class="emp-actions">
+        <button class="hours-btn" onclick="openTemplate('${e.id}')" title="Horaires">🕗</button>
+        <button class="edit-emp" onclick="openEmpForm('${e.id}')" title="Modifier">✎</button>
+        <button class="del-btn" onclick="delEmp('${e.id}')" title="Supprimer">🗑</button>
+      </div>
     </div>`).join("");
 }
-function addEmp(){ const i=document.getElementById("newEmp"); const n=i.value.trim(); if(!n) return; const e={id:uid(),name:n}; employees.push(e); ensureTemplate(e.id); saveAll(); i.value=""; renderSettings(); }
-function renameEmp(id,n){ const e=employees.find(x=>x.id===id); if(e){ e.name=n.trim()||e.name; saveAll(); } }
-function delEmp(id){ const e=employees.find(x=>x.id===id); if(!confirm(`Supprimer ${e?e.name:"ce salarié"} ?`)) return; employees=employees.filter(x=>x.id!==id); saveAll(); renderSettings(); }
+let empEditId=null;
+function openEmpForm(id){
+  empEditId=id;
+  const e=id?employees.find(x=>x.id===id):null;
+  document.getElementById("empModalTitle").textContent=e?"Modifier le salarié":"Nouveau salarié";
+  document.getElementById("fPrenom").value=e?(e.prenom||""):"";
+  document.getElementById("fNom").value=e?(e.nom||""):"";
+  document.getElementById("fTel").value=e?(e.tel||""):"";
+  document.getElementById("fMat").value=e?(e.matricule||""):"";
+  document.getElementById("empOverlay").classList.add("show");
+  document.getElementById("empModal").classList.add("show");
+}
+function closeEmpForm(){ document.getElementById("empOverlay").classList.remove("show"); document.getElementById("empModal").classList.remove("show"); }
+function saveEmpForm(){
+  const prenom=document.getElementById("fPrenom").value.trim();
+  const nom=document.getElementById("fNom").value.trim();
+  const tel=document.getElementById("fTel").value.trim();
+  const matricule=document.getElementById("fMat").value.trim();
+  if(!prenom && !nom){ alert("Indique au moins un prénom ou un nom."); return; }
+  if(empEditId){ const e=employees.find(x=>x.id===empEditId); if(e){ e.prenom=prenom; e.nom=nom; e.tel=tel; e.matricule=matricule; delete e.name; } }
+  else { const e={id:uid(),prenom,nom,tel,matricule}; employees.push(e); ensureTemplate(e.id); }
+  saveAll(); closeEmpForm(); renderEmployees();
+}
+function delEmp(id){ const e=employees.find(x=>x.id===id); if(!confirm(`Supprimer ${e?empName(e):"ce salarié"} ?`)) return; employees=employees.filter(x=>x.id!==id); saveAll(); renderEmployees(); }
 
-function openTemplate(id){ currentEmp=id; ensureTemplate(id); renderTemplate(); switchScreen("template"); }
+function openTemplate(id){ currentEmp=id; ensureTemplate(id); renderTemplate(); document.getElementById("template").classList.add("show"); window.scrollTo(0,0); }
+function closeTemplate(){ document.getElementById("template").classList.remove("show"); if(currentPage===4) renderEmployees(); else if(currentPage===3) renderBase(); else if(currentPage===2) renderWeek(); else renderHome(); }
 function renderTemplate(){
   const e=employees.find(x=>x.id===currentEmp); if(!e) return;
-  document.getElementById("tplTitle").textContent="Horaires — "+e.name;
+  document.getElementById("tplTitle").textContent="Horaires — "+empName(e);
   const t=templates[currentEmp];
   document.getElementById("tplDays").innerHTML=ORDRE.map(d=>{
     const day=t[d];
@@ -595,7 +664,7 @@ function openSchedule(id,dk){
   schedMode="date"; schedEmp=id; schedDate=dk;
   const e=employees.find(x=>x.id===id), p=planned(dk,id);
   document.getElementById("schedTitle").textContent="Horaire de ce jour";
-  document.getElementById("schedSub").innerHTML=`<b>${escapeHtml(e.name)}</b> — ${frDate(parseKey(dk))}`;
+  document.getElementById("schedSub").innerHTML=`<b>${escapeHtml(empName(e))}</b> — ${frDate(parseKey(dk))}`;
   document.getElementById("schedCard").innerHTML=schedCardHTML(p.work, p.arr||"08:00", p.dep||"17:00");
   document.getElementById("schedReset").style.display="";
   document.getElementById("schedNote").textContent="Ne change que ce jour précis. La semaine de référence n'est pas modifiée.";
@@ -605,7 +674,7 @@ function openBase(id,wd){
   schedMode="base"; schedEmp=id; schedWeekday=wd; ensureTemplate(id);
   const e=employees.find(x=>x.id===id), day=templates[id][wd];
   document.getElementById("schedTitle").textContent="Horaire habituel";
-  document.getElementById("schedSub").innerHTML=`<b>${escapeHtml(e.name)}</b> — tous les ${JOURS_FULL[wd]}s`;
+  document.getElementById("schedSub").innerHTML=`<b>${escapeHtml(empName(e))}</b> — tous les ${JOURS_FULL[wd]}s`;
   document.getElementById("schedCard").innerHTML=schedCardHTML(day.work, day.arr||"08:00", day.dep||"17:00");
   document.getElementById("schedReset").style.display="none";
   document.getElementById("schedNote").textContent="S'applique automatiquement à toutes les semaines à venir.";
@@ -629,7 +698,7 @@ function renderBase(){
   let head="<tr><th class='name-col'></th>"+ORDRE.map(wd=>`<th>${JOURS_C[wd]}</th>`).join("")+"</tr>";
   let body=employees.map(e=>{
     ensureTemplate(e.id);
-    let row=`<td class="name-col">${escapeHtml(e.name)}</td>`;
+    let row=`<td class="name-col">${escapeHtml(empName(e))}</td>`;
     row+=ORDRE.map(wd=>{
       const day=templates[e.id][wd];
       if(!day.work) return `<td><div class="cell repos" onclick="openBase('${e.id}',${wd})">Repos</div></td>`;
@@ -655,7 +724,7 @@ function renderWeek(){
   if(employees.length===0){ document.getElementById("weekWrap").innerHTML=`<div class="empty"><p>Ajoute d'abord des salariés dans « Pointage quotidien » → ⚙️.</p></div>`; return; }
   let head="<tr><th class='name-col'></th>"+days.map(d=>`<th class="${key(d)===tk?"today":""}">${JOURS_C[d.getDay()]}<br>${d.getDate()}</th>`).join("")+"</tr>";
   let body=employees.map(e=>{
-    let row=`<td class="name-col">${escapeHtml(e.name)}</td>`;
+    let row=`<td class="name-col">${escapeHtml(empName(e))}</td>`;
     row+=days.map(d=>{
       const dk=key(d), p=planned(dk,e.id), ovr=overrides[dk]&&overrides[dk][e.id];
       if(!p.work) return `<td><div class="cell repos ${ovr?"ovr":""}" onclick="openSchedule('${e.id}','${dk}')">Repos</div></td>`;
@@ -688,7 +757,7 @@ function showDetail(k){
     const en=day[e.id]||{arrStatus:"",depStatus:"",arrTime:"",depTime:""};
     const aB=en.arrStatus?`<span class="badge ${ARR_COLOR[en.arrStatus]}">${ARR_LABEL[en.arrStatus]}${en.arrStatus!=="absent"&&en.arrTime?" "+en.arrTime:""}</span>`:`<span class="badge none">—</span>`;
     const dB=(en.arrStatus==="absent")?"":(en.depStatus?`<span class="badge ${DEP_COLOR[en.depStatus]}">${DEP_LABEL[en.depStatus]}${en.depTime?" "+en.depTime:""}</span>`:`<span class="badge none">—</span>`);
-    return `<div class="detail-row"><span class="dn">${escapeHtml(e.name)}</span><span class="detail-vals">${aB}${dB}</span></div>`;
+    return `<div class="detail-row"><span class="dn">${escapeHtml(empName(e))}</span><span class="detail-vals">${aB}${dB}</span></div>`;
   }).join("");
   switchScreen("detail");
 }
@@ -697,23 +766,23 @@ function exportCSV(){
   if(keys.length===0){ alert("Rien à exporter pour l'instant."); return; }
   let rows=[["Date","Salarié","Arrivée prévue","Arrivée réelle","Statut arrivée","Sortie prévue","Sortie réelle","Statut sortie"]];
   keys.forEach(k=>{ employees.forEach(e=>{ const en=records[k][e.id]; if(!en||(!en.arrStatus&&!en.depStatus)) return; const p=planned(k,e.id);
-    rows.push([k,e.name,p.arr||"",en.arrTime||"",en.arrStatus?ARR_LABEL[en.arrStatus]:"",p.dep||"",en.depTime||"",en.depStatus?DEP_LABEL[en.depStatus]:""]); }); });
+    rows.push([k,empName(e),p.arr||"",en.arrTime||"",en.arrStatus?ARR_LABEL[en.arrStatus]:"",p.dep||"",en.depTime||"",en.depStatus?DEP_LABEL[en.depStatus]:""]); }); });
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\r\n");
   const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"}); const url=URL.createObjectURL(blob), a=document.createElement("a");
   a.href=url; a.download="pointage_"+key(startOfToday())+".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
 function switchScreen(id){
-  ["home","settings","template","history","detail"].forEach(s=>document.getElementById(s).classList.toggle("show",s===id));
+  ["home","history","detail"].forEach(s=>document.getElementById(s).classList.toggle("show",s===id));
   document.getElementById("home").classList.toggle("hide",id!=="home");
   window.scrollTo(0,0);
 }
 function showHome(){ renderHome(); switchScreen("home"); }
-function showSettings(){ renderSettings(); switchScreen("settings"); }
 function showHistory(){ renderHistory(); switchScreen("history"); }
 
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s){ return escapeHtml(s); }
+function empName(e){ const n=`${e.prenom||""} ${e.nom||""}`.trim(); return n||e.name||"Sans nom"; }
 
 /* démarrage */
 goPage(1);
