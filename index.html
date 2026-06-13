@@ -418,6 +418,7 @@
     <label>Nom<input id="fNom" type="text" autocomplete="off"></label>
     <label>Poste<select id="fPoste"><option value="laveur">Laveur auto</option><option value="technicien">Technicien pare-brise</option></select></label>
     <label>Téléphone<input id="fTel" type="tel" inputmode="tel" autocomplete="off"></label>
+    <label>Email<input id="fEmail" type="email" inputmode="email" autocomplete="off" placeholder="nom@exemple.fr"></label>
     <label>Heures par semaine (contrat)<input id="fContrat" type="text" inputmode="numeric" autocomplete="off" placeholder="ex. 35"></label>
     <label>Pause du midi (minutes)<input id="fPause" type="text" inputmode="numeric" autocomplete="off" placeholder="45"></label>
   </div>
@@ -704,6 +705,7 @@ function empMetaHTML(e){
     ${e.contrat?`<span>📄 ${escapeHtml(String(e.contrat))} h/sem</span>`:""}
     <span>🍽 ${escapeHtml(String(empPause(e)))} min</span>
     ${e.tel?`<span>📞 ${escapeHtml(e.tel)}</span>`:""}
+    ${e.email?`<span>✉️ ${escapeHtml(e.email)}</span>`:""}
   </div>`;
 }
 function renderEmployees(){
@@ -745,6 +747,7 @@ function openEmpForm(id){
   document.getElementById("fPrenom").value=e?(e.prenom||""):"";
   document.getElementById("fNom").value=e?(e.nom||""):"";
   document.getElementById("fTel").value=e?(e.tel||""):"";
+  document.getElementById("fEmail").value=e?(e.email||""):"";
   document.getElementById("fMat").value=e?(e.matricule||""):"";
   document.getElementById("fPoste").value=e?(e.poste||"laveur"):"laveur";
   document.getElementById("fContrat").value=e?(e.contrat||""):"";
@@ -758,6 +761,7 @@ function saveEmpForm(){
   const prenom=document.getElementById("fPrenom").value.trim();
   const nom=document.getElementById("fNom").value.trim();
   const tel=document.getElementById("fTel").value.trim();
+  const email=document.getElementById("fEmail").value.trim();
   const matricule=document.getElementById("fMat").value.trim();
   const poste=document.getElementById("fPoste").value;
   const contrat=document.getElementById("fContrat").value.trim();
@@ -769,8 +773,8 @@ function saveEmpForm(){
   // matricule unique (parmi tous les salariés, actifs ou anciens)
   const dup=employees.some(x=>x.id!==empEditId && (x.matricule||"").trim().toLowerCase()===matricule.toLowerCase());
   if(dup){ setErr(`Le matricule « ${matricule} » est déjà utilisé par un autre salarié.`); return; }
-  if(empEditId){ const e=employees.find(x=>x.id===empEditId); if(e){ e.prenom=prenom; e.nom=nom; e.tel=tel; e.matricule=matricule; e.poste=poste; e.contrat=contrat; e.pause=pause; delete e.name; } }
-  else { const e={id:uid(),prenom,nom,tel,matricule,poste,contrat,pause,archived:false}; employees.push(e); ensureTemplate(e.id); }
+  if(empEditId){ const e=employees.find(x=>x.id===empEditId); if(e){ e.prenom=prenom; e.nom=nom; e.tel=tel; e.email=email; e.matricule=matricule; e.poste=poste; e.contrat=contrat; e.pause=pause; delete e.name; } }
+  else { const e={id:uid(),prenom,nom,tel,email,matricule,poste,contrat,pause,archived:false}; employees.push(e); ensureTemplate(e.id); }
   saveAll(); closeEmpForm(); renderEmployees();
   if(document.getElementById("empDetail").classList.contains("show")) renderEmpDetail();
 }
@@ -795,6 +799,7 @@ function renderEmpDetail(){
         ${row("Contrat", e.contrat?escapeHtml(String(e.contrat))+" h/sem":"—")}
         ${row("Pause midi", escapeHtml(String(empPause(e)))+" min")}
         ${row("Téléphone", e.tel?escapeHtml(e.tel):"—")}
+        ${row("Email", e.email?escapeHtml(e.email):"—")}
       </div>
       <div class="ed-fiche-actions">
         <button class="hours-btn" onclick="openTemplate('${e.id}')">🕗 Horaires</button>
