@@ -734,10 +734,16 @@ function isToday(d){ return key(d)===key(startOfToday()); }
 function toMin(t){ if(!t||t.indexOf(":")<0) return null; const [h,m]=t.split(":").map(Number); return h*60+m; }
 
 function planned(dk,id){
+  const t=templates[id];
+  if(t && t.since && key(mondayOf(parseKey(dk)))<t.since) return {work:false,arr:"",dep:""}; // avant l'arrivée du salarié
   const ov=overrides[dk] && overrides[dk][id]; if(ov) return ov;
   const wd=parseKey(dk).getDay();
-  return templates[id] ? templates[id][wd] : {work:false,arr:"",dep:""};
+  return t ? t[wd] : {work:false,arr:"",dep:""};
 }
+// un salarié n'a pas de planning avant la semaine de son arrivée
+function empSince(id){ const t=templates[id]; return (t&&t.since)||null; }
+function bornBy(e,dk){ const s=empSince(e.id); return !s || key(mondayOf(parseKey(dk)))>=s; }
+function activesOn(dk){ return actives().filter(e=>bornBy(e,dk)); }
 function recEntry(dk,id){
   if(!records[dk]) records[dk]={};
   if(!records[dk][id]) records[dk][id]={arrStatus:"",arrTime:"",retardMin:0,absMotif:"",depStatus:"",depTime:"",hsMin:0,nbJobs:""};
@@ -767,7 +773,7 @@ function renderHome(){
     list.innerHTML=`<div class="empty"><p>Aucun salarié actif pour l'instant.<br>Ajoute ton équipe pour commencer.</p>
       <button class="btn-primary" onclick="goPage(4)">＋ Ajouter les salariés</button></div>`; return;
   }
-  const all=actives();
+  const all=activesOn(dk);
   const working=[], repos=[];
   all.forEach(e=>{ (planned(dk,e.id).work?working:repos).push(e); });
   let banner="";
@@ -1035,7 +1041,7 @@ function saveEmpForm(){
   if(dup){ setErr(`Le matricule « ${matricule} » est déjà utilisé par un autre salarié.`); return; }
   let savedId=empEditId;
   if(empEditId){ const e=employees.find(x=>x.id===empEditId); if(e){ e.prenom=prenom; e.nom=nom; e.tel=tel; e.email=email; e.matricule=matricule; e.poste=poste; e.contrat=contrat; e.pause=pause; delete e.name; } }
-  else { const e={id:uid(),prenom,nom,tel,email,matricule,poste,contrat,pause,archived:false}; employees.push(e); ensureTemplate(e.id); savedId=e.id; }
+  else { const e={id:uid(),prenom,nom,tel,email,matricule,poste,contrat,pause,archived:false}; employees.push(e); ensureTemplate(e.id); templates[e.id].since=key(mondayOf(startOfToday())); /* présent à partir de la semaine en cours, jamais sur les semaines passées */ savedId=e.id; }
   pushEmp(savedId); closeEmpForm(); renderEmployees();
   if(document.getElementById("empDetail").classList.contains("show")) renderEmpDetail();
 }
@@ -1205,7 +1211,7 @@ function renderWeek(){
   const tk=key(startOfToday());
   if(actives().length===0){ document.getElementById("weekWrap").innerHTML=`<div class="empty"><p>Ajoute d'abord des salariés dans la page « Salariés ».</p></div>`; return; }
   let head="<tr><th class='name-col'></th>"+days.map(d=>`<th class="${key(d)===tk?"today":""}">${JOURS_C[d.getDay()]}<br>${d.getDate()}</th>`).join("")+"</tr>";
-  let body=actives().map(e=>{
+  let body=activesOn(key(ws)).map(e=>{
     let row=`<td class="name-col">${escapeHtml(empName(e))}</td>`;
     row+=days.map(d=>{
       const dk=key(d), p=planned(dk,e.id), ovr=overrides[dk]&&overrides[dk][e.id];
@@ -1399,7 +1405,7 @@ function repEmpStep(d){ const sel=document.getElementById("repEmp"); const n=sel
 function fmtH(min){ if(min<=0) return "0 h 00"; const h=Math.floor(min/60), m=min%60; return h+" h "+String(m).padStart(2,"0"); }
 function weekRepRows(e,ws){
   ws=ws||mondayOf(repWeekRef); const pause=parseInt(empPause(e),10)||0; let total=0; const out=[];
-  for(let i=0;i<7;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); const dk=key(d);
+  for(let i=0;i<7;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); if(d.getDay()===0) continue; /* pas de dimanche : entreprise fermée */ const dk=key(d);
     const p=planned(dk,e.id), en=(records[dk]&&records[dk][e.id])||{}; let detail, txt, presence, mins=0; const hs=en.hsMin||0;
     if(!p.work){ detail=`<span class="wr-repos">Repos</span>`; txt="Repos"; presence="Repos"; }
     else if(en.arrStatus==="absent"){ const m="Absent"+(en.absMotif?" ("+absLabel(en.absMotif)+")":""); detail=`<span class="wr-abs">${m}</span>`; txt=m; presence=m; }
@@ -1454,7 +1460,7 @@ function renderWeekSign(){
   const cont=document.getElementById("weekSignList"); if(!cont) return;
   const ws=mondayOf(repWeekRef), last=new Date(ws); last.setDate(ws.getDate()+6);
   const lbl=document.getElementById("repWeekLabel"); if(lbl){ const moEl=d=>d.toLocaleDateString("fr-FR",{month:"long"}); lbl.textContent="Semaine du "+ws.getDate()+(ws.getMonth()===last.getMonth()?"":" "+moEl(ws))+" au "+last.getDate()+" "+moEl(last); }
-  const wk=weekKeyOf(), act=actives();
+  const wk=weekKeyOf(), act=activesOn(wk);
   if(!act.length){ cont.innerHTML=`<p class="hint">Aucun salarié.</p>`; return; }
   cont.innerHTML=act.map(e=>{
     const r=weekRepRows(e); const signed=!!(weekSigs[wk] && weekSigs[wk][e.id]);
@@ -1687,8 +1693,8 @@ function printCustomReportAll(startKey,endKey){
   const start=parseKey(startKey), end=parseKey(endKey);
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   let rows="", gTot=0, gSup=0;
-  actives().forEach(e=>{ const pause=parseInt(empPause(e),10)||0; let tot=0, sup=0, n=0;
-    for(let d=new Date(start); d<=end && n<400; d.setDate(d.getDate()+1), n++){ const dk=key(d); const p=planned(dk,e.id), rec=(records[dk]&&records[dk][e.id])||{};
+  actives().filter(e=>bornBy(e,endKey)).forEach(e=>{ const pause=parseInt(empPause(e),10)||0; let tot=0, sup=0, n=0;
+    for(let d=new Date(start); d<=end && n<400; d.setDate(d.getDate()+1), n++){ if(d.getDay()===0) continue; /* pas de dimanche */ const dk=key(d); const p=planned(dk,e.id), rec=(records[dk]&&records[dk][e.id])||{};
       if(p.work && rec.arrStatus && rec.arrStatus!=="absent" && rec.arrTime && rec.depTime){ tot+=Math.max(0,(toMin(rec.depTime)-toMin(rec.arrTime))-pause); }
       sup+=rec.hsMin||0;
     }
@@ -1712,7 +1718,7 @@ function printCustomReport(empId,startKey,endKey){
   const start=parseKey(startKey), end=parseKey(endKey), pause=parseInt(empPause(e),10)||0;
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   let rows="", total=0, totSup=0, n=0;
-  for(let d=new Date(start); d<=end && n<400; d.setDate(d.getDate()+1), n++){ const dk=key(d); const p=planned(dk,e.id), rec=(records[dk]&&records[dk][e.id])||{}; let pres, mins=0; const hs=rec.hsMin||0;
+  for(let d=new Date(start); d<=end && n<400; d.setDate(d.getDate()+1), n++){ if(d.getDay()===0) continue; /* pas de dimanche */ const dk=key(d); const p=planned(dk,e.id), rec=(records[dk]&&records[dk][e.id])||{}; let pres, mins=0; const hs=rec.hsMin||0;
     if(!p.work) pres="Repos";
     else if(rec.arrStatus==="absent") pres="Absent"+(rec.absMotif?" ("+absLabel(rec.absMotif)+")":"");
     else if(rec.arrStatus&&rec.arrTime&&rec.depTime){ mins=Math.max(0,(toMin(rec.depTime)-toMin(rec.arrTime))-pause); total+=mins; pres=rec.arrTime+" → "+rec.depTime; }
