@@ -382,6 +382,7 @@
   .es-actions button{flex:1;min-width:150px;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;}
   .btn-mail{background:#0891b2;color:#fff;}
   .ws-mail{flex:none;background:#e0f2fe;color:#0891b2;border:none;border-radius:9px;width:42px;height:38px;font-size:16px;cursor:pointer;}
+  .ws-mail.off{opacity:.4;}
   .es-tablewrap{overflow-x:auto;margin-top:4px;-webkit-overflow-scrolling:touch;}
   .es-table .es-num{text-align:right;white-space:nowrap;font-weight:700;}
   .es-split{margin-top:14px;border-top:2px solid var(--ink);padding-top:8px;}
@@ -664,7 +665,7 @@ async function loadAll(){
     sb.from("week_signatures").select("*")
   ]);
   (val.data||[]).forEach(r=>{ validated[r.date]={signer:r.signer||"",signature:r.signature||"",snapshot:r.snapshot||null,validated_at:r.validated_at}; });
-  (wsig.data||[]).forEach(r=>{ (weekSigs[r.week]=weekSigs[r.week]||{})[r.emp_id]={signature:r.signature||"",signed_at:r.signed_at}; });
+  (wsig.data||[]).forEach(r=>{ (weekSigs[r.week]=weekSigs[r.week]||{})[r.emp_id]={signature:r.signature||"",signed_at:r.signed_at,responsable:r.responsable||"",respSignature:r.resp_signature||""}; });
   (emp.data||[]).forEach(r=>{
     templates[r.id]=r.template||defaultTemplate();
     employees.push({id:r.id,prenom:r.prenom||"",nom:r.nom||"",tel:r.tel||"",email:r.email||"",matricule:r.matricule||"",poste:r.poste||"laveur",contrat:r.contrat||"",pause:(r.pause!=null?r.pause:"45"),archived:!!r.archived});
@@ -1391,7 +1392,7 @@ function renderWeekSign(){
     const r=weekRepRows(e); const signed=!!(weekSigs[wk] && weekSigs[wk][e.id]);
     return `<div class="ws-row">
       <div class="ws-main" onclick="openEmpSign('${e.id}')"><div class="ws-name">${escapeHtml(empName(e))}</div><div class="ws-tot">${fmtH(r.total)}</div></div>
-      <button class="ws-mail" onclick="emailEmp('${e.id}')" title="Envoyer par mail">✉️</button>
+      <button class="ws-mail ${signed?"":"off"}" onclick="emailEmpGated('${e.id}')" title="${signed?"Envoyer par mail":"Disponible une fois signé"}">✉️</button>
       <button class="ws-status ${signed?"ok":""}" onclick="openEmpSign('${e.id}')">${signed?"✓ Signé":"À signer"}</button>
     </div>`;
   }).join("");
@@ -1416,27 +1417,35 @@ function empSignDocHTML(e){
     <p class="es-cert">Je soussigné(e) <b>${escapeHtml(empName(e))}</b> certifie exact le relevé de mes heures de présence pour la semaine indiquée ci-dessus.</p>
   </div>`;
 }
-let empSignId=null, empSigPad=null;
+let empSignId=null, empSigPad=null, respSigPad=null;
 function openEmpSign(id){
   empSignId=id; const e=employees.find(x=>x.id===id); if(!e) return;
   const wk=weekKeyOf(), sig=weekSigs[wk] && weekSigs[wk][id];
   document.getElementById("empSignBody").innerHTML=empSignDocHTML(e)+`
-    ${sig?`<div class="es-signed">✓ Déjà signé${sig.signed_at?` le ${new Date(sig.signed_at).toLocaleDateString("fr-FR")}`:""}</div>`:""}
+    ${sig?`<div class="es-signed">✓ Déjà signé${sig.signed_at?` le ${new Date(sig.signed_at).toLocaleDateString("fr-FR")}`:""}${sig.responsable?` · responsable : ${escapeHtml(sig.responsable)}`:""}</div>`:""}
     <div class="es-sigzone">
       <div class="val-sig-lbl">Signature du salarié (dans le cadre)</div>
       <canvas id="empSigCanvas" class="sig-canvas"></canvas>
       <button class="sig-clear" onclick="clearEmpSig()">Effacer</button>
+      <label class="val-field" style="margin-top:16px;">Le responsable
+        <select id="respSelect"></select>
+      </label>
+      <div class="val-sig-lbl">Signature du responsable</div>
+      <canvas id="respSigCanvas" class="sig-canvas"></canvas>
+      <button class="sig-clear" onclick="clearRespSig()">Effacer</button>
       <div class="form-error" id="empSignErr"></div>
       <div class="es-actions">
-        <button class="ov-save" id="empSignSaveBtn" onclick="saveEmpSign()">Valider la signature</button>
+        <button class="ov-save" id="empSignSaveBtn" onclick="saveEmpSign()">Valider les signatures</button>
         <button class="btn-export" onclick="printEmpSign()">🖨️ Imprimer / PDF</button>
       </div>
     </div>`;
+  document.getElementById("respSelect").innerHTML=SIGNERS.map(s=>`<option value="${escapeAttr(s)}">${escapeHtml(s)}</option>`).join("");
+  if(sig && sig.responsable) document.getElementById("respSelect").value=sig.responsable;
   document.getElementById("empSign").classList.add("show"); window.scrollTo(0,0);
-  setTimeout(()=>{ empSigPad=initEmpPad(); },60);
+  setTimeout(()=>{ empSigPad=initEmpPad("empSigCanvas"); respSigPad=initEmpPad("respSigCanvas"); },60);
 }
-function initEmpPad(){
-  const c=document.getElementById("empSigCanvas"); if(!c) return null;
+function initEmpPad(canvasId){
+  const c=document.getElementById(canvasId); if(!c) return null;
   const ratio=window.devicePixelRatio||1, rect=c.getBoundingClientRect();
   c.width=rect.width*ratio; c.height=rect.height*ratio;
   const ctx=c.getContext("2d"); ctx.scale(ratio,ratio); ctx.lineWidth=2.2; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.strokeStyle="#111827";
@@ -1448,18 +1457,26 @@ function initEmpPad(){
   c.onmousedown=start; c.onmousemove=move; window.onmouseup=end; c.ontouchstart=start; c.ontouchmove=move; c.ontouchend=end;
   return pad;
 }
-function clearEmpSig(){ if(empSigPad){ empSigPad.ctx.clearRect(0,0,empSigPad.c.width,empSigPad.c.height); empSigPad.empty=true; } }
+function clearPad(pad){ if(pad){ pad.ctx.clearRect(0,0,pad.c.width,pad.c.height); pad.empty=true; } }
+function clearEmpSig(){ clearPad(empSigPad); }
+function clearRespSig(){ clearPad(respSigPad); }
 function closeEmpSign(){ document.getElementById("empSign").classList.remove("show"); if(currentPage===5) renderWeekSign(); }
 async function saveEmpSign(){
   const errEl=document.getElementById("empSignErr"); errEl.textContent="";
   if(!empSigPad || empSigPad.empty){ errEl.textContent="Le salarié doit signer dans le cadre."; return; }
-  const wk=weekKeyOf(), signature=empSigPad.c.toDataURL("image/png"), at=new Date().toISOString();
+  if(!respSigPad || respSigPad.empty){ errEl.textContent="Le responsable doit aussi signer."; return; }
+  const wk=weekKeyOf(), signature=empSigPad.c.toDataURL("image/png"), respSignature=respSigPad.c.toDataURL("image/png"), responsable=document.getElementById("respSelect").value, at=new Date().toISOString();
   const btn=document.getElementById("empSignSaveBtn"); btn.disabled=true; btn.textContent="Enregistrement…";
-  const {error}=await sb.from("week_signatures").upsert({week:wk,emp_id:empSignId,signature,signed_at:at});
-  btn.disabled=false; btn.textContent="Valider la signature";
+  const {error}=await sb.from("week_signatures").upsert({week:wk,emp_id:empSignId,signature,responsable,resp_signature:respSignature,signed_at:at});
+  btn.disabled=false; btn.textContent="Valider les signatures";
   if(error){ errEl.textContent="Erreur : "+error.message; return; }
-  if(!weekSigs[wk]) weekSigs[wk]={}; weekSigs[wk][empSignId]={signature,signed_at:at};
+  if(!weekSigs[wk]) weekSigs[wk]={}; weekSigs[wk][empSignId]={signature,signed_at:at,responsable,respSignature};
   closeEmpSign();
+}
+function emailEmpGated(id){
+  const wk=weekKeyOf();
+  if(!(weekSigs[wk] && weekSigs[wk][id])){ alert("Le relevé doit d'abord être signé par le salarié avant l'envoi par mail."); return; }
+  emailEmp(id);
 }
 function emailEmp(id){
   const e=employees.find(x=>x.id===id); if(!e) return;
@@ -1489,14 +1506,14 @@ function printEmpSign(){
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Relevé ${esc(empName(e))}</title>
     <style>body{font-family:Arial,sans-serif;color:#111;padding:34px;max-width:640px;margin:auto;}h1{font-size:20px;text-align:center;margin:0 0 18px;}
     .id{font-size:15px;}.per{color:#555;margin:2px 0 16px;}table{width:100%;border-collapse:collapse;font-size:14px;}th,td{border:1px solid #bbb;padding:8px 10px;text-align:left;}th{background:#eee;}
-    .tot{margin-top:14px;font-size:16px;font-weight:bold;}.cert{margin-top:24px;font-size:13px;line-height:1.5;}.sign{margin-top:30px;font-size:13px;}.sign img{border-bottom:1px solid #000;max-width:260px;display:block;margin-top:6px;}.sline{border-bottom:1px solid #000;width:260px;height:60px;margin-top:6px;}</style></head>
+    .tot{margin-top:14px;font-size:16px;font-weight:bold;}.cert{margin-top:24px;font-size:13px;line-height:1.5;}.signs{display:flex;gap:40px;flex-wrap:wrap;margin-top:30px;}.sign{font-size:13px;}.sign img{border-bottom:1px solid #000;max-width:240px;display:block;margin-top:6px;}.sline{border-bottom:1px solid #000;width:240px;height:60px;margin-top:6px;}</style></head>
     <body><h1>Relevé de présence hebdomadaire</h1>
     <div class="id"><b>${esc(empName(e))}</b>${e.matricule?" — matricule "+esc(e.matricule):""}</div>
     <div class="per">Semaine ${esc(period)}</div>
     <table><thead><tr><th>Jour</th><th>Présence pointée</th><th>Travaillé</th><th>H. sup.</th></tr></thead><tbody>${rows}</tbody></table>
     ${splitHtml}
     <p class="cert">Je soussigné(e) <b>${esc(empName(e))}</b> certifie exact le relevé de mes heures de présence pour la semaine indiquée ci-dessus.</p>
-    <div class="sign">Signature du salarié :${sig?`<img src="${sig.signature}">`:`<div class="sline"></div>`}</div>
+    <div class="signs"><div class="sign">Signature du salarié :${sig&&sig.signature?`<img src="${sig.signature}">`:`<div class="sline"></div>`}</div><div class="sign">Le responsable${sig&&sig.responsable?" ("+esc(sig.responsable)+")":""} :${sig&&sig.respSignature?`<img src="${sig.respSignature}">`:`<div class="sline"></div>`}</div></div>
     </body></html>`);
   w.document.close(); setTimeout(()=>{try{w.print();}catch(e){}},350);
 }
