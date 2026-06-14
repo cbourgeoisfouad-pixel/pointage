@@ -1426,6 +1426,23 @@ function weekSplit(e,total){
   const cm=Math.round(ch*60);
   return {hasContract:true, normal:Math.min(total,cm), sup:Math.max(0,total-cm)};
 }
+// Heures sup = présence sur site − pause − contrat, calculées SEMAINE PAR SEMAINE (le contrat est hebdomadaire).
+// Sur une période de plusieurs semaines, on additionne les heures sup de chaque semaine.
+function rangeStats(e,startKey,endKey){
+  const start=parseKey(startKey), end=parseKey(endKey), pause=parseInt(empPause(e),10)||0;
+  const ch=parseFloat(String(e.contrat||"").replace(",", ".")); const hasContract=ch && !isNaN(ch) && ch>0; const cm=hasContract?Math.round(ch*60):0;
+  const weekTotals={}; let totalWorked=0, n=0;
+  for(let d=new Date(start); d<=end && n<800; d.setDate(d.getDate()+1), n++){
+    if(d.getDay()===0) continue; // jamais le dimanche
+    const dk=key(d), p=planned(dk,e.id), rec=(records[dk]&&records[dk][e.id])||{};
+    if(p.work && rec.arrStatus && rec.arrStatus!=="absent" && rec.arrTime && rec.depTime){
+      const mins=Math.max(0,(toMin(rec.depTime)-toMin(rec.arrTime))-pause);
+      totalWorked+=mins; const wk=key(mondayOf(d)); weekTotals[wk]=(weekTotals[wk]||0)+mins;
+    }
+  }
+  let sup=0; if(hasContract) Object.values(weekTotals).forEach(t=>{ sup+=Math.max(0,t-cm); });
+  return {totalWorked, sup, hasContract, contrat:ch};
+}
 function renderWeekRep(){
   const sel=document.getElementById("repEmp"); const e=employees.find(x=>x.id===sel.value);
   const ws=mondayOf(repWeekRef), last=new Date(ws); last.setDate(ws.getDate()+5);
@@ -1445,7 +1462,7 @@ function printWeekRep(){
   const r=weekRepRows(e); const last=new Date(r.ws); last.setDate(r.ws.getDate()+5);
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   const lbl="Semaine du "+r.ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
-  const rows=r.rows.map(x=>`<tr><td>${esc(x.day)}</td><td>${esc(x.presence)}</td><td style="text-align:right">${esc(x.worked)}</td><td style="text-align:right">${esc(x.sup)}</td></tr>`).join("");
+  const rows=r.rows.map(x=>`<tr><td>${esc(x.day)}</td><td>${esc(x.presence)}</td><td style="text-align:right">${esc(x.worked)}</td></tr>`).join("");
   const sp=weekSplit(e,r.total);
   const splitHtml = sp.hasContract
     ? `<div class="tot">Heures contrat (${esc(String(e.contrat))} h) : ${fmtH(sp.normal)}<br>Total réalisé : ${fmtH(r.total)}<br>Heures supplémentaires : ${fmtH(sp.sup)}</div>`
@@ -1455,7 +1472,7 @@ function printWeekRep(){
     <style>body{font-family:Arial,sans-serif;color:#111;padding:26px;}h1{font-size:19px;margin:0 0 2px;}.sub{color:#555;margin-bottom:16px;}
     table{width:100%;border-collapse:collapse;font-size:14px;}td{border:1px solid #bbb;padding:8px 10px;}.tot{margin-top:16px;font-size:16px;font-weight:bold;}</style></head>
     <body><h1>${esc(empName(e))}${e.matricule?" — "+esc(e.matricule):""}</h1><div class="sub">${esc(lbl)}</div>
-    <table><thead><tr><th>Jour</th><th>Présence pointée</th><th>Travaillé</th><th>H. sup.</th></tr></thead><tbody>${rows}</tbody></table>${splitHtml}</body></html>`);
+    <table><thead><tr><th>Jour</th><th>Présence pointée</th><th>Travaillé</th></tr></thead><tbody>${rows}</tbody></table>${splitHtml}</body></html>`);
   w.document.close(); setTimeout(()=>{try{w.print();}catch(e){}},350);
 }
 
@@ -1478,7 +1495,7 @@ function renderWeekSign(){
 function empSignDocHTML(e){
   const r=weekRepRows(e), ws=r.ws, last=new Date(ws); last.setDate(ws.getDate()+5);
   const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
-  const rows=r.rows.map(x=>`<tr><td>${x.day}</td><td>${escapeHtml(x.presence)}</td><td class="es-num">${x.worked}</td><td class="es-num">${x.sup}</td></tr>`).join("");
+  const rows=r.rows.map(x=>`<tr><td>${x.day}</td><td>${escapeHtml(x.presence)}</td><td class="es-num">${x.worked}</td></tr>`).join("");
   const sp=weekSplit(e,r.total);
   const split= sp.hasContract
     ? `<div class="es-split">
@@ -1490,7 +1507,7 @@ function empSignDocHTML(e){
     <div class="es-doc-title">Relevé de présence hebdomadaire</div>
     <div class="es-doc-id"><b>${escapeHtml(empName(e))}</b>${e.matricule?` — matricule ${escapeHtml(e.matricule)}`:""}</div>
     <div class="es-doc-period">Semaine ${period}</div>
-    <div class="es-tablewrap"><table class="es-table"><thead><tr><th>Jour</th><th>Présence pointée</th><th>Travaillé</th><th>H. sup.</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="es-tablewrap"><table class="es-table"><thead><tr><th>Jour</th><th>Présence pointée</th><th>Travaillé</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${split}
     <p class="es-cert">Je soussigné(e) <b>${escapeHtml(empName(e))}</b> certifie exact le relevé de mes heures de présence pour la semaine indiquée ci-dessus.</p>
   </div>`;
@@ -1593,7 +1610,7 @@ function emailEmp(id){
   const r=weekRepRows(e), ws=r.ws, last=new Date(ws); last.setDate(ws.getDate()+5);
   const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
   const sp=weekSplit(e,r.total);
-  const lines=r.rows.map(x=>`${x.day} : ${x.presence}${x.workedMin>0?" — "+x.worked:""}${x.hsMin>0?" (dont "+x.sup+" sup)":""}`).join("\n");
+  const lines=r.rows.map(x=>`${x.day} : ${x.presence}${x.workedMin>0?" — "+x.worked:""}`).join("\n");
   let body=`Bonjour ${e.prenom||""},\n\nVoici ton relevé de présence pour la semaine ${period} :\n\n${lines}\n\n`;
   if(sp.hasContract){ body+=`Heures contrat (${e.contrat} h) : ${fmtH(sp.normal)}\nHeures supplémentaires : ${fmtH(sp.sup)}\n`; }
   body+=`Total réalisé : ${fmtH(r.total)}\n\nCordialement,\nUS CAR WASH`;
@@ -1606,7 +1623,7 @@ function printEmpSign(){
   const wk=weekKeyOf(), sig=weekSigs[wk] && weekSigs[wk][empSignId];
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
-  const rows=r.rows.map(x=>`<tr><td>${esc(x.day)}</td><td>${esc(x.presence)}</td><td style="text-align:right">${esc(x.worked)}</td><td style="text-align:right">${esc(x.sup)}</td></tr>`).join("");
+  const rows=r.rows.map(x=>`<tr><td>${esc(x.day)}</td><td>${esc(x.presence)}</td><td style="text-align:right">${esc(x.worked)}</td></tr>`).join("");
   const sp=weekSplit(e,r.total);
   const splitHtml = sp.hasContract
     ? `<div class="tot">Heures contrat (${esc(String(e.contrat))} h) : ${fmtH(sp.normal)}<br>Total réalisé : ${fmtH(r.total)}<br>Heures supplémentaires : ${fmtH(sp.sup)}</div>`
@@ -1619,7 +1636,7 @@ function printEmpSign(){
     <body><h1>Relevé de présence hebdomadaire</h1>
     <div class="id"><b>${esc(empName(e))}</b>${e.matricule?" — matricule "+esc(e.matricule):""}</div>
     <div class="per">Semaine ${esc(period)}</div>
-    <table><thead><tr><th>Jour</th><th>Présence pointée</th><th>Travaillé</th><th>H. sup.</th></tr></thead><tbody>${rows}</tbody></table>
+    <table><thead><tr><th>Jour</th><th>Présence pointée</th><th>Travaillé</th></tr></thead><tbody>${rows}</tbody></table>
     ${splitHtml}
     <p class="cert">Je soussigné(e) <b>${esc(empName(e))}</b> certifie exact le relevé de mes heures de présence pour la semaine indiquée ci-dessus.</p>
     ${sig&&sig.signed_at?`<div class="signdate">Signé le ${new Date(sig.signed_at).toLocaleDateString("fr-FR")} à ${new Date(sig.signed_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</div>`:""}
@@ -1697,13 +1714,9 @@ function printCustomReportAll(startKey,endKey){
   const start=parseKey(startKey), end=parseKey(endKey);
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   let rows="", gTot=0, gSup=0;
-  actives().filter(e=>bornBy(e,endKey)).forEach(e=>{ const pause=parseInt(empPause(e),10)||0; let tot=0, sup=0, n=0;
-    for(let d=new Date(start); d<=end && n<400; d.setDate(d.getDate()+1), n++){ if(d.getDay()===0) continue; /* pas de dimanche */ const dk=key(d); const p=planned(dk,e.id), rec=(records[dk]&&records[dk][e.id])||{};
-      if(p.work && rec.arrStatus && rec.arrStatus!=="absent" && rec.arrTime && rec.depTime){ tot+=Math.max(0,(toMin(rec.depTime)-toMin(rec.arrTime))-pause); }
-      sup+=rec.hsMin||0;
-    }
-    gTot+=tot; gSup+=sup;
-    rows+=`<tr><td>${esc(empName(e))}</td><td>${esc(e.matricule||"")}</td><td style="text-align:right">${fmtH(tot)}</td><td style="text-align:right;font-weight:bold">${fmtH(sup)}</td></tr>`;
+  actives().filter(e=>bornBy(e,endKey)).forEach(e=>{ const st=rangeStats(e,startKey,endKey);
+    gTot+=st.totalWorked; gSup+=st.sup;
+    rows+=`<tr><td>${esc(empName(e))}</td><td>${esc(e.matricule||"")}</td><td style="text-align:right">${fmtH(st.totalWorked)}</td><td style="text-align:right;font-weight:bold">${fmtH(st.sup)}</td></tr>`;
   });
   const period=start.toLocaleDateString("fr-FR")+" au "+end.toLocaleDateString("fr-FR");
   const win=window.open("","_blank"); if(!win){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
@@ -1721,24 +1734,27 @@ function printCustomReport(empId,startKey,endKey){
   const e=employees.find(x=>x.id===empId); if(!e) return;
   const start=parseKey(startKey), end=parseKey(endKey), pause=parseInt(empPause(e),10)||0;
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-  let rows="", total=0, totSup=0, n=0;
-  for(let d=new Date(start); d<=end && n<400; d.setDate(d.getDate()+1), n++){ if(d.getDay()===0) continue; /* pas de dimanche */ const dk=key(d); const p=planned(dk,e.id), rec=(records[dk]&&records[dk][e.id])||{}; let pres, mins=0; const hs=rec.hsMin||0;
+  let rows="", n=0;
+  for(let d=new Date(start); d<=end && n<400; d.setDate(d.getDate()+1), n++){ if(d.getDay()===0) continue; /* pas de dimanche */ const dk=key(d); const p=planned(dk,e.id), rec=(records[dk]&&records[dk][e.id])||{}; let pres, mins=0;
     if(!p.work) pres="Repos";
     else if(rec.arrStatus==="absent") pres="Absent"+(rec.absMotif?" ("+absLabel(rec.absMotif)+")":"");
-    else if(rec.arrStatus&&rec.arrTime&&rec.depTime){ mins=Math.max(0,(toMin(rec.depTime)-toMin(rec.arrTime))-pause); total+=mins; pres=rec.arrTime+" → "+rec.depTime; }
+    else if(rec.arrStatus&&rec.arrTime&&rec.depTime){ mins=Math.max(0,(toMin(rec.depTime)-toMin(rec.arrTime))-pause); pres=rec.arrTime+" → "+rec.depTime; }
     else if(rec.arrStatus) pres="Sortie non pointée"; else pres="Non pointé";
-    totSup+=hs;
-    rows+=`<tr><td>${esc(d.toLocaleDateString("fr-FR",{weekday:"short",day:"2-digit",month:"short"}))}</td><td>${esc(pres)}</td><td style="text-align:right">${mins>0?fmtH(mins):"—"}</td><td style="text-align:right">${hs>0?fmtH(hs):"—"}</td></tr>`;
+    rows+=`<tr><td>${esc(d.toLocaleDateString("fr-FR",{weekday:"short",day:"2-digit",month:"short"}))}</td><td>${esc(pres)}</td><td style="text-align:right">${mins>0?fmtH(mins):"—"}</td></tr>`;
   }
+  const st=rangeStats(e,startKey,endKey);
+  const supLine = st.hasContract
+    ? `<tr><td colspan="2">Heures supplémentaires (contrat ${esc(String(e.contrat))} h/sem)</td><td style="text-align:right;font-weight:bold">${fmtH(st.sup)}</td></tr>`
+    : `<tr><td colspan="3" style="font-weight:normal;color:#555;">Renseigne les heures de contrat dans la fiche pour le calcul des heures sup.</td></tr>`;
   const period=start.toLocaleDateString("fr-FR")+" au "+end.toLocaleDateString("fr-FR");
   const win=window.open("","_blank"); if(!win){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Relevé ${esc(empName(e))}</title>
     <style>body{font-family:Arial,sans-serif;color:#111;padding:30px;}h1{font-size:20px;margin:0 0 2px;}.sub{color:#555;margin-bottom:16px;}
     table{width:100%;border-collapse:collapse;font-size:13px;}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left;}th{background:#eee;}tfoot td{font-weight:bold;background:#f6f6f6;}</style></head>
     <body><h1>${esc(empName(e))}${e.matricule?" — "+esc(e.matricule):""}</h1><div class="sub">Relevé d'heures ${esc(period)}</div>
-    <table><thead><tr><th>Jour</th><th>Présence</th><th>Travaillé</th><th>H. sup.</th></tr></thead>
+    <table><thead><tr><th>Jour</th><th>Présence</th><th>Travaillé</th></tr></thead>
     <tbody>${rows}</tbody>
-    <tfoot><tr><td colspan="2">TOTAL</td><td style="text-align:right">${fmtH(total)}</td><td style="text-align:right">${fmtH(totSup)}</td></tr></tfoot></table>
+    <tfoot><tr><td colspan="2">TOTAL RÉALISÉ</td><td style="text-align:right">${fmtH(st.totalWorked)}</td></tr>${supLine}</tfoot></table>
     </body></html>`);
   win.document.close(); setTimeout(()=>{try{win.print();}catch(e){}},350);
 }
