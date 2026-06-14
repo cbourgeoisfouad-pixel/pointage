@@ -380,6 +380,7 @@
   .es-sigzone{margin:12px;}
   .es-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
   .es-actions button{flex:1;min-width:150px;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;}
+  .btn-mail{background:#0891b2;color:#fff;}
   .es-tablewrap{overflow-x:auto;margin-top:4px;-webkit-overflow-scrolling:touch;}
   .es-table .es-num{text-align:right;white-space:nowrap;font-weight:700;}
   .es-split{margin-top:14px;border-top:2px solid var(--ink);padding-top:8px;}
@@ -1426,6 +1427,7 @@ function openEmpSign(id){
       <div class="form-error" id="empSignErr"></div>
       <div class="es-actions">
         <button class="ov-save" id="empSignSaveBtn" onclick="saveEmpSign()">Valider la signature</button>
+        <button class="btn-mail" onclick="emailEmpSign()">✉️ Envoyer par mail</button>
         <button class="btn-export" onclick="printEmpSign()">🖨️ Imprimer / PDF</button>
       </div>
     </div>`;
@@ -1457,6 +1459,19 @@ async function saveEmpSign(){
   if(error){ errEl.textContent="Erreur : "+error.message; return; }
   if(!weekSigs[wk]) weekSigs[wk]={}; weekSigs[wk][empSignId]={signature,signed_at:at};
   closeEmpSign();
+}
+function emailEmpSign(){
+  const e=employees.find(x=>x.id===empSignId); if(!e) return;
+  if(!e.email){ alert("Aucun email renseigné dans la fiche de ce salarié. Ajoute-le dans la page « Salariés »."); return; }
+  const r=weekRepRows(e), ws=r.ws, last=new Date(ws); last.setDate(ws.getDate()+6);
+  const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  const sp=weekSplit(e,r.total);
+  const lines=r.rows.map(x=>`${x.day} : ${x.presence}${x.workedMin>0?" — "+x.worked:""}${x.hsMin>0?" (dont "+x.sup+" sup)":""}`).join("\n");
+  let body=`Bonjour ${e.prenom||""},\n\nVoici ton relevé de présence pour la semaine ${period} :\n\n${lines}\n\n`;
+  if(sp.hasContract){ body+=`Heures contrat (${e.contrat} h) : ${fmtH(sp.normal)}\nHeures supplémentaires : ${fmtH(sp.sup)}\n`; }
+  body+=`Total réalisé : ${fmtH(r.total)}\n\nCordialement,\nUS CAR WASH`;
+  const subject=`Relevé de présence — ${empName(e)} — semaine ${period}`;
+  window.location.href=`mailto:${encodeURIComponent(e.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 function printEmpSign(){
   const e=employees.find(x=>x.id===empSignId); if(!e) return;
