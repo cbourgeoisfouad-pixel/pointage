@@ -230,6 +230,15 @@
   .fs .sub-head{top:0;padding-top:calc(var(--safe-top) + 12px);}
 
   /* ===================== PAGE 4 : SALARIÉS ===================== */
+  .resp-bulle{background:var(--card);border-radius:14px;padding:14px;margin:12px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .resp-title{font-size:15px;font-weight:800;margin-bottom:10px;}
+  .resp-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:16px;font-weight:700;}
+  .resp-row:last-child{border-bottom:none;}
+  .resp-add{display:flex;gap:8px;margin-top:10px;}
+  .resp-add input{flex:1;border:1.5px solid var(--line);border-radius:10px;padding:11px;font-size:16px;min-width:0;}
+  .resp-add input:focus{outline:none;border-color:var(--primary);}
+  .resp-add button{background:var(--primary);color:#fff;border:none;border-radius:10px;width:46px;font-size:22px;font-weight:700;cursor:pointer;flex:none;}
+  .resp-hint{color:var(--muted);font-size:12px;margin-top:8px;}
   .emp-search{padding:12px 12px 0;}
   .emp-search input{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-size:16px;color:var(--ink);background:#fff;}
   .emp-search input:focus{outline:none;border-color:var(--primary);}
@@ -487,6 +496,12 @@
 </section>
 <section class="page" id="page4">
   <div class="week-head"><div class="week-label">Salariés</div></div>
+  <div class="resp-bulle">
+    <div class="resp-title">👔 Responsables</div>
+    <div id="respList"></div>
+    <div class="resp-add"><input id="newResp" type="text" placeholder="Nom du responsable" autocomplete="off"><button onclick="addResp()">+</button></div>
+    <p class="resp-hint">Ce sont eux qui signent les rapports (du jour et de la semaine). Pas d'horaire.</p>
+  </div>
   <div id="importBanner" class="import-banner" style="display:none;">
     <span>📥 Des salariés sont enregistrés sur <b>cet appareil</b> mais pas encore en ligne.</span>
     <button onclick="importLocal()">Importer en ligne maintenant</button>
@@ -647,7 +662,7 @@ const ARR_COLOR={present:"green",retard:"amber",absent:"red"};
 const POSTE_LABEL={laveur:"Laveur auto",technicien:"Technicien pare-brise"};
 const DEP_COLOR={parti:"green",avance:"blue",heuresup:"amber"};
 
-let employees=[], templates={}, overrides={}, records={}, validated={}, weekSigs={};
+let employees=[], templates={}, overrides={}, records={}, validated={}, weekSigs={}, responsables=[];
 let viewDate=startOfToday();
 let currentEmp=null;
 
@@ -658,14 +673,16 @@ const sb=window.supabase.createClient(SB_URL, SB_KEY);
 
 /* ---- Chargement de toutes les données depuis le cloud ---- */
 async function loadAll(){
-  employees=[]; templates={}; overrides={}; records={}; validated={}; weekSigs={};
-  const [emp,ovr,rec,val,wsig]=await Promise.all([
+  employees=[]; templates={}; overrides={}; records={}; validated={}; weekSigs={}; responsables=[];
+  const [emp,ovr,rec,val,wsig,resp]=await Promise.all([
     sb.from("employees").select("*"),
     sb.from("overrides").select("*"),
     sb.from("records").select("*"),
     sb.from("validations").select("*"),
-    sb.from("week_signatures").select("*")
+    sb.from("week_signatures").select("*"),
+    sb.from("responsables").select("*")
   ]);
+  responsables=(resp.data||[]).slice().sort((a,b)=>(a.created_at||"").localeCompare(b.created_at||""));
   (val.data||[]).forEach(r=>{ validated[r.date]={signer:r.signer||"",signature:r.signature||"",snapshot:r.snapshot||null,validated_at:r.validated_at}; });
   (wsig.data||[]).forEach(r=>{ (weekSigs[r.week]=weekSigs[r.week]||{})[r.emp_id]={signature:r.signature||"",signed_at:r.signed_at,responsable:r.responsable||"",respSignature:r.resp_signature||""}; });
   (emp.data||[]).forEach(r=>{
@@ -909,7 +926,27 @@ function empMetaHTML(e){
     ${e.email?`<span>✉️ ${escapeHtml(e.email)}</span>`:""}
   </div>`;
 }
+function renderResponsables(){
+  const c=document.getElementById("respList"); if(!c) return;
+  if(!responsables.length){ c.innerHTML=`<p class="resp-hint">Aucun responsable pour l'instant. Ajoute-en ci-dessous.</p>`; return; }
+  c.innerHTML=responsables.map(r=>`<div class="resp-row"><span>${escapeHtml(r.name)}</span><button class="del-btn" onclick="delResp('${r.id}')">🗑</button></div>`).join("");
+}
+async function addResp(){
+  const i=document.getElementById("newResp"); const n=i.value.trim(); if(!n) return;
+  const r={id:uid(),name:n};
+  const {error}=await sb.from("responsables").insert({id:r.id,name:n});
+  if(error){ alert("Erreur : "+error.message); return; }
+  responsables.push(r); i.value=""; renderResponsables();
+}
+async function delResp(id){
+  const r=responsables.find(x=>x.id===id);
+  if(!confirm(`Supprimer le responsable ${r?r.name:""} ?`)) return;
+  const {error}=await sb.from("responsables").delete().eq("id",id);
+  if(error){ alert("Erreur : "+error.message); return; }
+  responsables=responsables.filter(x=>x.id!==id); renderResponsables();
+}
 function renderEmployees(){
+  renderResponsables();
   const c=document.getElementById("empCards");
   const norm=s=>String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
   const q=norm((document.getElementById("empSearch")?.value||"").trim());
@@ -1268,7 +1305,10 @@ async function importLocal(){
 /* =========================================================
    VALIDATION / SIGNATURE DE JOURNÉE → page « Rapport »
    ========================================================= */
-const SIGNERS=["Personne 1","Personne 2"];
+function respOptions(selected){
+  if(!responsables.length) return `<option value="">— Ajoute des responsables dans « Salariés »</option>`;
+  return responsables.map(r=>`<option value="${escapeAttr(r.name)}" ${selected===r.name?"selected":""}>${escapeHtml(r.name)}</option>`).join("");
+}
 function dayLocked(dk){ return !!validated[dk]; }
 function buildSnapshot(dk){
   const rows=[];
@@ -1281,7 +1321,7 @@ function buildSnapshot(dk){
 let sigPad=null;
 function openValidate(){
   document.getElementById("valDate").textContent=frDate(viewDate);
-  document.getElementById("valSigner").innerHTML=SIGNERS.map(s=>`<option value="${escapeAttr(s)}">${escapeHtml(s)}</option>`).join("");
+  document.getElementById("valSigner").innerHTML=respOptions();
   document.getElementById("valErr").textContent="";
   document.getElementById("valOverlay").classList.add("show");
   document.getElementById("validateModal").classList.add("show");
@@ -1305,6 +1345,7 @@ function clearSig(){ if(sigPad){ sigPad.ctx.clearRect(0,0,sigPad.c.width,sigPad.
 async function saveValidate(){
   const dk=key(viewDate), signer=document.getElementById("valSigner").value, errEl=document.getElementById("valErr");
   errEl.textContent="";
+  if(!signer){ errEl.textContent="Ajoute d'abord des responsables dans la page « Salariés »."; return; }
   if(!sigPad || sigPad.empty){ errEl.textContent="Merci de signer dans le cadre."; return; }
   const signature=cropSig(sigPad.c), snapshot=buildSnapshot(dk);
   const btn=document.getElementById("valSaveBtn"); btn.disabled=true; btn.textContent="Validation…";
@@ -1456,7 +1497,7 @@ function openEmpSign(id){
   document.getElementById("empSign").classList.add("show"); window.scrollTo(0,0);
   if(sig){ empSigPad=null; respSigPad=null; }
   else {
-    document.getElementById("respSelect").innerHTML=SIGNERS.map(s=>`<option value="${escapeAttr(s)}">${escapeHtml(s)}</option>`).join("");
+    document.getElementById("respSelect").innerHTML=respOptions();
     setTimeout(()=>{ empSigPad=initEmpPad("empSigCanvas"); respSigPad=initEmpPad("respSigCanvas"); },60);
   }
 }
@@ -1495,6 +1536,7 @@ function closeEmpSign(){ document.getElementById("empSign").classList.remove("sh
 async function saveEmpSign(){
   const wkg=weekKeyOf(); if(weekSigs[wkg] && weekSigs[wkg][empSignId]){ alert("Ce relevé est déjà signé, il ne peut plus être modifié."); closeEmpSign(); return; }
   const errEl=document.getElementById("empSignErr"); errEl.textContent="";
+  if(!document.getElementById("respSelect").value){ errEl.textContent="Ajoute d'abord des responsables dans la page « Salariés »."; return; }
   if(!empSigPad || empSigPad.empty){ errEl.textContent="Le salarié doit signer dans le cadre."; return; }
   if(!respSigPad || respSigPad.empty){ errEl.textContent="Le responsable doit aussi signer."; return; }
   const wk=weekKeyOf(), signature=cropSig(empSigPad.c), respSignature=cropSig(respSigPad.c), responsable=document.getElementById("respSelect").value, at=new Date().toISOString();
