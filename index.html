@@ -362,6 +362,19 @@
   .wr-total b{color:var(--green);}
   .rap-search{width:100%;border:1.5px solid var(--line);border-radius:11px;padding:12px;font-size:16px;margin-bottom:10px;}
   .rap-search:focus{outline:none;border-color:var(--primary);}
+  /* récap hebdo */
+  .recap-row{display:flex;align-items:center;gap:10px;justify-content:space-between;border-bottom:1px solid var(--line);padding:10px 0;}
+  .recap-row:last-child{border-bottom:none;}
+  .recap-d{font-size:15px;font-weight:700;text-transform:capitalize;}
+  .recap-sub{font-size:12px;color:var(--muted);font-weight:600;margin-top:2px;}
+  .recap-btn{flex:none;background:#047857;color:#fff;border:none;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .recap-wait{flex:none;font-size:12px;color:var(--amber);font-weight:700;}
+  /* rapport personnalisé */
+  .cust-field{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:700;color:var(--muted);}
+  .cust-field select,.cust-field input{border:1.5px solid var(--line);border-radius:10px;padding:11px;font-size:16px;font-weight:600;color:var(--ink);background:#fff;}
+  .cust-field select:focus,.cust-field input:focus{outline:none;border-color:var(--primary);}
+  .cust-dates{display:flex;gap:10px;margin-top:10px;}
+  .cust-dates .cust-field{flex:1;}
 
   /* barre semaine partagée + relevés à signer */
   .rap-weekbar{display:flex;align-items:center;gap:8px;background:#1f2937;color:#fff;padding:10px 12px;}
@@ -515,13 +528,20 @@
   <div id="rapportMain">
     <div class="rap-weekbar"><button onclick="repWeek(-1)">‹</button><span id="repWeekLabel"></span><button onclick="repWeek(1)">›</button></div>
     <div class="rap-bulle">
-      <div class="rap-bulle-title">✍️ Relevés à faire signer par les salariés</div>
+      <div class="rap-bulle-title">✍️ À faire signer — semaine ci-dessus</div>
       <div id="weekSignList"></div>
     </div>
     <div class="rap-bulle">
-      <div class="rap-bulle-title">📋 Détail des heures — par salarié</div>
-      <div class="wr-empnav"><button onclick="repEmpStep(-1)">‹</button><select id="repEmp" onchange="renderWeekRep()"></select><button onclick="repEmpStep(1)">›</button></div>
-      <div id="weekRepBody"></div>
+      <div class="rap-bulle-title">📊 Récapitulatifs hebdomadaires (heures sup)</div>
+      <input id="recapSearch" class="rap-search" type="search" placeholder="🔍 Rechercher une semaine (ex. « mai »)…" oninput="renderRecapList()" autocomplete="off">
+      <div id="recapList"></div>
+    </div>
+    <div class="rap-bulle">
+      <div class="rap-bulle-title">🛠️ Créer un rapport personnalisé</div>
+      <label class="cust-field">Salarié<select id="custEmp"></select></label>
+      <div class="cust-dates"><label class="cust-field">Du<input type="date" id="custStart"></label><label class="cust-field">Au<input type="date" id="custEnd"></label></div>
+      <button class="btn-export" style="margin-top:12px;" onclick="genCustomReport()">📄 Générer le PDF</button>
+      <div class="form-error" id="custErr"></div>
     </div>
     <div class="rap-bulle">
       <div class="rap-bulle-title">🗓️ Rapports du jour (journées signées)</div>
@@ -1360,22 +1380,23 @@ async function saveValidate(){
 function renderRapport(){
   document.getElementById("rapportDetail").style.display="none";
   document.getElementById("rapportMain").style.display="block";
-  const sel=document.getElementById("repEmp"); const cur=sel.value;
-  sel.innerHTML=actives().map(e=>`<option value="${e.id}">${escapeHtml(empName(e))}</option>`).join("");
-  if(cur && [...sel.options].some(o=>o.value===cur)) sel.value=cur;
   renderWeekSign();
-  renderWeekRep();
+  renderRecapList();
+  const cs=document.getElementById("custEmp"); const cur=cs.value;
+  cs.innerHTML=actives().map(e=>`<option value="${e.id}">${escapeHtml(empName(e))}</option>`).join("");
+  if(cur && [...cs.options].some(o=>o.value===cur)) cs.value=cur;
+  if(!document.getElementById("custStart").value){ document.getElementById("custStart").value=key(mondayOf(startOfToday())); document.getElementById("custEnd").value=key(startOfToday()); }
   renderRapportList();
 }
 
 /* ----- Heures de la semaine par salarié ----- */
 let repWeekRef=startOfToday();
-function repWeek(d){ repWeekRef.setDate(repWeekRef.getDate()+d*7); renderWeekSign(); renderWeekRep(); }
+function repWeek(d){ repWeekRef.setDate(repWeekRef.getDate()+d*7); renderWeekSign(); }
 function weekKeyOf(){ return key(mondayOf(repWeekRef)); }
 function repEmpStep(d){ const sel=document.getElementById("repEmp"); const n=sel.options.length; if(!n) return; let i=sel.selectedIndex+d; if(i<0)i=n-1; if(i>=n)i=0; sel.selectedIndex=i; renderWeekRep(); }
 function fmtH(min){ if(min<=0) return "0 h 00"; const h=Math.floor(min/60), m=min%60; return h+" h "+String(m).padStart(2,"0"); }
-function weekRepRows(e){
-  const ws=mondayOf(repWeekRef); const pause=parseInt(empPause(e),10)||0; let total=0; const out=[];
+function weekRepRows(e,ws){
+  ws=ws||mondayOf(repWeekRef); const pause=parseInt(empPause(e),10)||0; let total=0; const out=[];
   for(let i=0;i<7;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); const dk=key(d);
     const p=planned(dk,e.id), en=(records[dk]&&records[dk][e.id])||{}; let detail, txt, presence, mins=0; const hs=en.hsMin||0;
     if(!p.work){ detail=`<span class="wr-repos">Repos</span>`; txt="Repos"; presence="Repos"; }
@@ -1429,6 +1450,8 @@ function printWeekRep(){
 /* ----- Relevés à faire signer par les salariés ----- */
 function renderWeekSign(){
   const cont=document.getElementById("weekSignList"); if(!cont) return;
+  const ws=mondayOf(repWeekRef), last=new Date(ws); last.setDate(ws.getDate()+6);
+  const lbl=document.getElementById("repWeekLabel"); if(lbl){ const moEl=d=>d.toLocaleDateString("fr-FR",{month:"long"}); lbl.textContent="Semaine du "+ws.getDate()+(ws.getMonth()===last.getMonth()?"":" "+moEl(ws))+" au "+last.getDate()+" "+moEl(last); }
   const wk=weekKeyOf(), act=actives();
   if(!act.length){ cont.innerHTML=`<p class="hint">Aucun salarié.</p>`; return; }
   cont.innerHTML=act.map(e=>{
@@ -1591,6 +1614,79 @@ function printEmpSign(){
     <div class="signs"><div class="sign">Signature du salarié :${sig&&sig.signature?`<img src="${sig.signature}">`:`<div class="sline"></div>`}</div><div class="sign">Le responsable${sig&&sig.responsable?" ("+esc(sig.responsable)+")":""} :${sig&&sig.respSignature?`<img src="${sig.respSignature}">`:`<div class="sline"></div>`}</div></div>
     </body></html>`);
   w.document.close(); setTimeout(()=>{try{w.print();}catch(e){}},350);
+}
+
+/* ----- Récapitulatifs hebdomadaires (heures sup) ----- */
+function weekLabelOf(w){ const ws=parseKey(w), last=new Date(ws); last.setDate(ws.getDate()+6); return "Semaine du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"}); }
+function renderRecapList(){
+  const cont=document.getElementById("recapList"); if(!cont) return;
+  const norm=s=>String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  const q=norm((document.getElementById("recapSearch")?.value||"").trim());
+  let weeks=Object.keys(weekSigs).filter(w=>weekSigs[w]&&Object.keys(weekSigs[w]).length>0).sort().reverse();
+  if(q) weeks=weeks.filter(w=>norm(weekLabelOf(w)).includes(q)||w.includes(q));
+  if(!weeks.length){ cont.innerHTML=`<p class="hint">${q?"Aucune semaine pour cette recherche.":"Aucun récapitulatif pour l'instant. Il apparaîtra une fois que tous les salariés auront signé leur semaine."}</p>`; return; }
+  const act=actives();
+  cont.innerHTML=weeks.map(w=>{
+    const signed=act.filter(e=>weekSigs[w]&&weekSigs[w][e.id]).length;
+    const complete=act.length>0 && signed>=act.length;
+    return `<div class="recap-row">
+      <div class="recap-info"><div class="recap-d">${weekLabelOf(w)}</div><div class="recap-sub">${complete?"✓ Tous signés":signed+" / "+act.length+" signés"}</div></div>
+      ${complete?`<button class="recap-btn" onclick="printWeekRecap('${w}')">📄 Récap heures sup</button>`:`<span class="recap-wait">en attente</span>`}
+    </div>`;
+  }).join("");
+}
+function printWeekRecap(w){
+  const ws=parseKey(w), last=new Date(ws); last.setDate(ws.getDate()+6);
+  const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  let rows="", gTot=0, gSup=0;
+  actives().forEach(e=>{ const r=weekRepRows(e,ws); const sp=weekSplit(e,r.total); gTot+=r.total; gSup+=sp.sup;
+    rows+=`<tr><td>${esc(empName(e))}</td><td>${esc(e.matricule||"")}</td><td>${e.contrat?esc(e.contrat)+" h":"—"}</td><td style="text-align:right">${fmtH(r.total)}</td><td style="text-align:right;font-weight:bold">${fmtH(sp.sup)}</td></tr>`; });
+  const win=window.open("","_blank"); if(!win){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Récap heures sup — ${esc(period)}</title>
+    <style>body{font-family:Arial,sans-serif;color:#111;padding:30px;}h1{font-size:20px;margin:0 0 2px;}.sub{color:#555;margin-bottom:16px;}
+    table{width:100%;border-collapse:collapse;font-size:14px;}th,td{border:1px solid #bbb;padding:8px 10px;text-align:left;}th{background:#eee;}tfoot td{font-weight:bold;background:#f6f6f6;}</style></head>
+    <body><h1>Récapitulatif des heures supplémentaires</h1><div class="sub">Semaine ${esc(period)}</div>
+    <table><thead><tr><th>Salarié</th><th>Matricule</th><th>Contrat</th><th>Total réalisé</th><th>Heures sup.</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="3">TOTAL</td><td style="text-align:right">${fmtH(gTot)}</td><td style="text-align:right">${fmtH(gSup)}</td></tr></tfoot></table>
+    </body></html>`);
+  win.document.close(); setTimeout(()=>{try{win.print();}catch(e){}},350);
+}
+
+/* ----- Rapport personnalisé (salarié + période) ----- */
+function genCustomReport(){
+  const errEl=document.getElementById("custErr"); errEl.textContent="";
+  const empId=document.getElementById("custEmp").value, s=document.getElementById("custStart").value, en=document.getElementById("custEnd").value;
+  if(!empId){ errEl.textContent="Choisis un salarié."; return; }
+  if(!s||!en){ errEl.textContent="Choisis les deux dates."; return; }
+  if(s>en){ errEl.textContent="La date de début doit être avant la date de fin."; return; }
+  printCustomReport(empId,s,en);
+}
+function printCustomReport(empId,startKey,endKey){
+  const e=employees.find(x=>x.id===empId); if(!e) return;
+  const start=parseKey(startKey), end=parseKey(endKey), pause=parseInt(empPause(e),10)||0;
+  const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  let rows="", total=0, totSup=0, n=0;
+  for(let d=new Date(start); d<=end && n<400; d.setDate(d.getDate()+1), n++){ const dk=key(d); const p=planned(dk,e.id), rec=(records[dk]&&records[dk][e.id])||{}; let pres, mins=0; const hs=rec.hsMin||0;
+    if(!p.work) pres="Repos";
+    else if(rec.arrStatus==="absent") pres="Absent"+(rec.absMotif?" ("+absLabel(rec.absMotif)+")":"");
+    else if(rec.arrStatus&&rec.arrTime&&rec.depTime){ mins=Math.max(0,(toMin(rec.depTime)-toMin(rec.arrTime))-pause); total+=mins; pres=rec.arrTime+" → "+rec.depTime; }
+    else if(rec.arrStatus) pres="Sortie non pointée"; else pres="Non pointé";
+    totSup+=hs;
+    rows+=`<tr><td>${esc(d.toLocaleDateString("fr-FR",{weekday:"short",day:"2-digit",month:"short"}))}</td><td>${esc(pres)}</td><td style="text-align:right">${mins>0?fmtH(mins):"—"}</td><td style="text-align:right">${hs>0?fmtH(hs):"—"}</td></tr>`;
+  }
+  const period=start.toLocaleDateString("fr-FR")+" au "+end.toLocaleDateString("fr-FR");
+  const win=window.open("","_blank"); if(!win){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Relevé ${esc(empName(e))}</title>
+    <style>body{font-family:Arial,sans-serif;color:#111;padding:30px;}h1{font-size:20px;margin:0 0 2px;}.sub{color:#555;margin-bottom:16px;}
+    table{width:100%;border-collapse:collapse;font-size:13px;}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left;}th{background:#eee;}tfoot td{font-weight:bold;background:#f6f6f6;}</style></head>
+    <body><h1>${esc(empName(e))}${e.matricule?" — "+esc(e.matricule):""}</h1><div class="sub">Relevé d'heures ${esc(period)}</div>
+    <table><thead><tr><th>Jour</th><th>Présence</th><th>Travaillé</th><th>H. sup.</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="2">TOTAL</td><td style="text-align:right">${fmtH(total)}</td><td style="text-align:right">${fmtH(totSup)}</td></tr></tfoot></table>
+    </body></html>`);
+  win.document.close(); setTimeout(()=>{try{win.print();}catch(e){}},350);
 }
 
 /* ----- Bulle : rapports du jour (recherche par date) ----- */
