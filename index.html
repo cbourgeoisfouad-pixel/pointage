@@ -676,7 +676,7 @@ function closeDrawer(){ document.getElementById("drawer").classList.remove("open
 const K_EMP="pointage_employees", K_TPL="pointage_templates", K_OVR="pointage_overrides", K_REC="pointage_records", K_SEED="pointage_seeded";
 
 const JOURS_C=["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
-const ORDRE=[1,2,3,4,5,6,0];
+const ORDRE=[1,2,3,4,5,6];   // lundi → samedi, jamais le dimanche (entreprise fermée)
 const DEFAULT_EMP=[{prenom:"Mathieu",nom:"Garnier"},{prenom:"Karim",nom:"Benali"},{prenom:"David",nom:"Lefèbvre"},{prenom:"Thomas",nom:"Moreau"},{prenom:"Sofiane",nom:"Andrieu"}];
 const ARR_LABEL={present:"Présent",retard:"En retard",absent:"Absent"};
 const DEP_LABEL={parti:"Parti",avance:"Parti en avance",heuresup:"Heure sup."};
@@ -768,6 +768,10 @@ function renderHome(){
   const list=document.getElementById("list");
   const isVal=!!validated[dk];
   list.classList.toggle("locked", isVal);
+  if(viewDate.getDay()===0){          // dimanche : entreprise fermée, aucun pointage possible
+    list.classList.remove("locked");
+    list.innerHTML=`<div class="empty"><p>🚫 <b>Dimanche — entreprise fermée.</b><br>Aucun pointage le dimanche.</p></div>`; return;
+  }
   if(actives().length===0){
     list.classList.remove("locked");
     list.innerHTML=`<div class="empty"><p>Aucun salarié actif pour l'instant.<br>Ajoute ton équipe pour commencer.</p>
@@ -1204,8 +1208,8 @@ function changeWeek(delta){ weekRef.setDate(weekRef.getDate()+delta*7); renderWe
 function weekTo(n){ weekRef=startOfToday(); weekRef.setDate(weekRef.getDate()+n*7); renderWeek(); }
 function renderWeek(){
   const ws=mondayOf(weekRef);
-  const days=[]; for(let i=0;i<7;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); days.push(d); }
-  const last=days[6], sameMonth=ws.getMonth()===last.getMonth();
+  const days=[]; for(let i=0;i<6;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); days.push(d); }  // lundi → samedi
+  const last=days[days.length-1], sameMonth=ws.getMonth()===last.getMonth();
   const moEl=d=>d.toLocaleDateString("fr-FR",{month:"long"});
   document.getElementById("weekLabel").textContent="Semaine du "+ws.getDate()+(sameMonth?"":" "+moEl(ws))+" au "+last.getDate()+" "+moEl(last);
   const tk=key(startOfToday());
