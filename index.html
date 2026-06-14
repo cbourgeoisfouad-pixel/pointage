@@ -319,7 +319,7 @@
   .val-field{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:12px;}
   .val-field select{border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:16px;font-weight:600;color:var(--ink);background:#fff;}
   .val-sig-lbl{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:6px;}
-  .sig-canvas{width:100%;height:110px;border:1.5px dashed var(--line);border-radius:12px;background:#fafafa;touch-action:none;display:block;}
+  .sig-canvas{width:100%;max-width:340px;height:120px;border:1.5px dashed var(--line);border-radius:12px;background:#fafafa;touch-action:none;display:block;}
   .sig-clear{margin-top:8px;background:#f3f4f6;color:var(--muted);border:none;border-radius:9px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;}
 
   /* page Rapport */
@@ -329,7 +329,7 @@
   .rap-jobs{background:var(--blue-bg);color:var(--blue);border-radius:999px;padding:4px 9px;font-size:12px;font-weight:700;}
   .rap-sign-block{background:var(--card);border-radius:12px;padding:14px;margin:14px 12px;}
   .rap-sign-lbl{font-size:14px;margin-bottom:8px;}
-  .rap-sign-img{border:1px solid var(--line);border-radius:8px;max-width:260px;background:#fff;}
+  .rap-sign-img{border:1px solid var(--line);border-radius:8px;max-width:320px;max-height:150px;background:#fff;}
   .rap-actions{padding:0 12px calc(24px + var(--safe-bottom));}
 
   /* bulles rapport */
@@ -1304,7 +1304,7 @@ async function saveValidate(){
   const dk=key(viewDate), signer=document.getElementById("valSigner").value, errEl=document.getElementById("valErr");
   errEl.textContent="";
   if(!sigPad || sigPad.empty){ errEl.textContent="Merci de signer dans le cadre."; return; }
-  const signature=sigPad.c.toDataURL("image/png"), snapshot=buildSnapshot(dk);
+  const signature=cropSig(sigPad.c), snapshot=buildSnapshot(dk);
   const btn=document.getElementById("valSaveBtn"); btn.disabled=true; btn.textContent="Validation…";
   const at=new Date().toISOString();
   const {error}=await sb.from("validations").upsert({date:dk,signer,signature,snapshot,validated_at:at});
@@ -1460,12 +1460,27 @@ function initEmpPad(canvasId){
 function clearPad(pad){ if(pad){ pad.ctx.clearRect(0,0,pad.c.width,pad.c.height); pad.empty=true; } }
 function clearEmpSig(){ clearPad(empSigPad); }
 function clearRespSig(){ clearPad(respSigPad); }
+/* rogne le vide autour de la signature pour qu'elle remplisse le cadre du PDF */
+function cropSig(canvas){
+  try{
+    const ctx=canvas.getContext("2d"), w=canvas.width, h=canvas.height;
+    const data=ctx.getImageData(0,0,w,h).data;
+    let minX=w,minY=h,maxX=0,maxY=0,found=false;
+    for(let y=0;y<h;y++){ for(let x=0;x<w;x++){ if(data[(y*w+x)*4+3]>10){ found=true; if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y; } } }
+    if(!found) return canvas.toDataURL("image/png");
+    const pad=10; minX=Math.max(0,minX-pad); minY=Math.max(0,minY-pad); maxX=Math.min(w-1,maxX+pad); maxY=Math.min(h-1,maxY+pad);
+    const cw=maxX-minX+1, ch=maxY-minY+1;
+    const out=document.createElement("canvas"); out.width=cw; out.height=ch;
+    out.getContext("2d").drawImage(canvas,minX,minY,cw,ch,0,0,cw,ch);
+    return out.toDataURL("image/png");
+  }catch(e){ return canvas.toDataURL("image/png"); }
+}
 function closeEmpSign(){ document.getElementById("empSign").classList.remove("show"); if(currentPage===5) renderWeekSign(); }
 async function saveEmpSign(){
   const errEl=document.getElementById("empSignErr"); errEl.textContent="";
   if(!empSigPad || empSigPad.empty){ errEl.textContent="Le salarié doit signer dans le cadre."; return; }
   if(!respSigPad || respSigPad.empty){ errEl.textContent="Le responsable doit aussi signer."; return; }
-  const wk=weekKeyOf(), signature=empSigPad.c.toDataURL("image/png"), respSignature=respSigPad.c.toDataURL("image/png"), responsable=document.getElementById("respSelect").value, at=new Date().toISOString();
+  const wk=weekKeyOf(), signature=cropSig(empSigPad.c), respSignature=cropSig(respSigPad.c), responsable=document.getElementById("respSelect").value, at=new Date().toISOString();
   const btn=document.getElementById("empSignSaveBtn"); btn.disabled=true; btn.textContent="Enregistrement…";
   const {error}=await sb.from("week_signatures").upsert({week:wk,emp_id:empSignId,signature,responsable,resp_signature:respSignature,signed_at:at});
   btn.disabled=false; btn.textContent="Valider les signatures";
@@ -1506,7 +1521,7 @@ function printEmpSign(){
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Relevé ${esc(empName(e))}</title>
     <style>body{font-family:Arial,sans-serif;color:#111;padding:34px;max-width:640px;margin:auto;}h1{font-size:20px;text-align:center;margin:0 0 18px;}
     .id{font-size:15px;}.per{color:#555;margin:2px 0 16px;}table{width:100%;border-collapse:collapse;font-size:14px;}th,td{border:1px solid #bbb;padding:8px 10px;text-align:left;}th{background:#eee;}
-    .tot{margin-top:14px;font-size:16px;font-weight:bold;}.cert{margin-top:24px;font-size:13px;line-height:1.5;}.signdate{margin-top:26px;font-size:13px;font-weight:bold;}.signs{display:flex;gap:40px;flex-wrap:wrap;margin-top:8px;}.sign{font-size:13px;}.sign img{border:1px solid #ccc;border-radius:6px;width:300px;max-width:300px;display:block;margin-top:6px;}.sline{border-bottom:1px solid #000;width:300px;height:80px;margin-top:6px;}</style></head>
+    .tot{margin-top:14px;font-size:16px;font-weight:bold;}.cert{margin-top:24px;font-size:13px;line-height:1.5;}.signdate{margin-top:26px;font-size:13px;font-weight:bold;}.signs{display:flex;gap:40px;flex-wrap:wrap;margin-top:8px;}.sign{font-size:13px;}.sign img{border:1px solid #ccc;border-radius:6px;max-width:320px;max-height:150px;width:auto;height:auto;display:block;margin-top:6px;}.sline{border-bottom:1px solid #000;width:300px;height:80px;margin-top:6px;}</style></head>
     <body><h1>Relevé de présence hebdomadaire</h1>
     <div class="id"><b>${esc(empName(e))}</b>${e.matricule?" — matricule "+esc(e.matricule):""}</div>
     <div class="per">Semaine ${esc(period)}</div>
@@ -1570,7 +1585,7 @@ function printRapport(dk){
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Rapport ${esc(frDate(parseKey(dk)))}</title>
     <style>body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:26px;} h1{font-size:19px;margin:0 0 2px;} .sub{color:#555;margin-bottom:18px;text-transform:capitalize;}
     table{width:100%;border-collapse:collapse;font-size:13px;} th,td{border:1px solid #bbb;padding:7px 9px;text-align:left;} th{background:#eee;}
-    .sign{margin-top:30px;font-size:14px;} .sign img{border:1px solid #ccc;border-radius:8px;max-width:280px;display:block;margin-top:8px;}</style></head>
+    .sign{margin-top:30px;font-size:14px;} .sign img{border:1px solid #ccc;border-radius:8px;max-width:320px;max-height:150px;width:auto;height:auto;display:block;margin-top:8px;}</style></head>
     <body><h1>Rapport de pointage</h1><div class="sub">${esc(frDate(parseKey(dk)))}</div>
     <table><thead><tr><th>Salarié</th><th>Matricule</th><th>Arrivée</th><th>Sortie</th><th>Jobs</th></tr></thead><tbody>${rowsHtml}</tbody></table>
     <div class="sign">Journée validée par <b>${esc(v.signer)}</b>${v.signature?`<img src="${v.signature}">`:""}</div>
