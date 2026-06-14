@@ -1765,7 +1765,8 @@ function printRapport(dk){
     const arr = r.arrStatus==="absent" ? "Absent"+(r.absMotif?" ("+absLabel(r.absMotif)+")":"") : (r.arrStatus?((ARR_LABEL[r.arrStatus]||"")+(r.arrTime?" — "+r.arrTime:"")):"—");
     const dep = r.arrStatus==="absent" ? "—" : (r.depStatus?((DEP_LABEL[r.depStatus]||"")+(r.depTime?" — "+r.depTime:"")):"—");
     const jobs = r.poste==="technicien" ? (r.nbJobs||0) : "";
-    return `<tr><td>${esc(r.nom)}</td><td>${esc(r.matricule)}</td><td>${esc(arr)}</td><td>${esc(dep)}</td><td style="text-align:center">${jobs}</td></tr>`;
+    const hs = (r.arrStatus!=="absent" && (r.hsMin||0)>0) ? fmtH(r.hsMin) : "—";
+    return `<tr><td>${esc(r.nom)}</td><td>${esc(r.matricule)}</td><td>${esc(arr)}</td><td>${esc(dep)}</td><td style="text-align:center">${esc(hs)}</td><td style="text-align:center">${jobs}</td></tr>`;
   }).join("");
   const w=window.open("","_blank"); if(!w){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Rapport ${esc(frDate(parseKey(dk)))}</title>
@@ -1773,7 +1774,7 @@ function printRapport(dk){
     table{width:100%;border-collapse:collapse;font-size:13px;} th,td{border:1px solid #bbb;padding:7px 9px;text-align:left;} th{background:#eee;}
     .sign{margin-top:30px;font-size:14px;} .sign img{border:1px solid #ccc;border-radius:8px;max-width:320px;max-height:150px;width:auto;height:auto;display:block;margin-top:8px;}</style></head>
     <body><h1>Rapport de pointage</h1><div class="sub">${esc(frDate(parseKey(dk)))}</div>
-    <table><thead><tr><th>Salarié</th><th>Matricule</th><th>Arrivée</th><th>Sortie</th><th>Jobs</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+    <table><thead><tr><th>Salarié</th><th>Matricule</th><th>Arrivée</th><th>Sortie</th><th>Heures sup.</th><th>Jobs</th></tr></thead><tbody>${rowsHtml}</tbody></table>
     <div class="sign">Journée validée par <b>${esc(v.signer)}</b>${v.signature?`<img src="${v.signature}">`:""}</div>
     </body></html>`);
   w.document.close(); setTimeout(()=>{ try{w.print();}catch(e){} },350);
