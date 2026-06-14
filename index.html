@@ -1620,6 +1620,15 @@ function printEmpSign(){
 
 /* ----- Récapitulatifs hebdomadaires (heures sup) ----- */
 function weekLabelOf(w){ const ws=parseKey(w), last=new Date(ws); last.setDate(ws.getDate()+6); return "Semaine du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"}); }
+// salariés concernés par une semaine : ceux qui ont signé OU qui ont des pointages cette semaine (archivés inclus)
+function weekParticipants(w){
+  const ws=parseKey(w), ids=new Set();
+  if(weekSigs[w]) Object.keys(weekSigs[w]).forEach(id=>ids.add(id));
+  for(let i=0;i<7;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); const m=records[key(d)];
+    if(m) Object.keys(m).forEach(id=>{ const en=m[id]; if(en&&(en.arrStatus||en.depStatus)) ids.add(id); }); }
+  return [...ids].map(id=>employees.find(e=>e.id===id)).filter(Boolean)
+    .sort((a,b)=>empName(a).localeCompare(empName(b),"fr"));
+}
 function renderRecapList(){
   const cont=document.getElementById("recapList"); if(!cont) return;
   let weeks=Object.keys(weekSigs).filter(w=>weekSigs[w]&&Object.keys(weekSigs[w]).length>0).sort().reverse();
@@ -1630,13 +1639,17 @@ function renderRecapList(){
     if(!weeks.length){ cont.innerHTML=`<p class="hint">Aucun relevé signé pour la ${weekLabelOf(wk).toLowerCase()}.</p>`; return; }
   }
   if(!weeks.length){ cont.innerHTML=`<p class="hint">Aucun récapitulatif pour l'instant. Il apparaîtra une fois que tous les salariés auront signé leur semaine.</p>`; return; }
-  const act=actives();
+  const curWeek=key(mondayOf(startOfToday()));
   cont.innerHTML=weeks.map(w=>{
-    const signed=act.filter(e=>weekSigs[w]&&weekSigs[w][e.id]).length;
-    const complete=act.length>0 && signed>=act.length;
+    const parts=weekParticipants(w);
+    const signed=parts.filter(e=>weekSigs[w]&&weekSigs[w][e.id]).length;
+    const total=parts.length;
+    const complete=total>0 && signed>=total;
+    const isPast=w<curWeek;                 // semaine terminée → toujours dans l'historique
+    const showBtn=complete||isPast;
     return `<div class="recap-row">
-      <div class="recap-info"><div class="recap-d">${weekLabelOf(w)}</div><div class="recap-sub">${complete?"✓ Tous signés":signed+" / "+act.length+" signés"}</div></div>
-      ${complete?`<button class="recap-btn" onclick="printWeekRecap('${w}')">📄 Récap heures sup</button>`:`<span class="recap-wait">en attente</span>`}
+      <div class="recap-info"><div class="recap-d">${weekLabelOf(w)}</div><div class="recap-sub">${complete?"✓ Tous signés":signed+" / "+total+" signés"}</div></div>
+      ${showBtn?`<button class="recap-btn" onclick="printWeekRecap('${w}')">📄 Récap heures sup</button>`:`<span class="recap-wait">en attente</span>`}
     </div>`;
   }).join("");
 }
@@ -1645,7 +1658,7 @@ function printWeekRecap(w){
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
   let rows="", gTot=0, gSup=0;
-  actives().forEach(e=>{ const r=weekRepRows(e,ws); const sp=weekSplit(e,r.total); gTot+=r.total; gSup+=sp.sup;
+  const parts=weekParticipants(w); (parts.length?parts:actives()).forEach(e=>{ const r=weekRepRows(e,ws); const sp=weekSplit(e,r.total); gTot+=r.total; gSup+=sp.sup;
     const sig=weekSigs[w]&&weekSigs[w][e.id];
     const sigCell=sig&&sig.signature?`<img src="${sig.signature}" style="max-width:150px;max-height:55px;">`:"—";
     rows+=`<tr><td>${esc(empName(e))}</td><td>${esc(e.matricule||"")}</td><td>${e.contrat?esc(e.contrat)+" h":"—"}</td><td style="text-align:right">${fmtH(r.total)}</td><td style="text-align:right;font-weight:bold">${fmtH(sp.sup)}</td><td>${sigCell}</td></tr>`; });
