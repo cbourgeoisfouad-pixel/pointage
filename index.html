@@ -319,7 +319,7 @@
   .val-field{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:12px;}
   .val-field select{border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:16px;font-weight:600;color:var(--ink);background:#fff;}
   .val-sig-lbl{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:6px;}
-  .sig-canvas{width:100%;height:170px;border:1.5px dashed var(--line);border-radius:12px;background:#fafafa;touch-action:none;display:block;}
+  .sig-canvas{width:100%;height:110px;border:1.5px dashed var(--line);border-radius:12px;background:#fafafa;touch-action:none;display:block;}
   .sig-clear{margin-top:8px;background:#f3f4f6;color:var(--muted);border:none;border-radius:9px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;}
 
   /* page Rapport */
@@ -1372,8 +1372,8 @@ function printWeekRep(){
   const rows=r.rows.map(x=>`<tr><td>${esc(x.day)}</td><td>${esc(x.presence)}</td><td style="text-align:right">${esc(x.worked)}</td><td style="text-align:right">${esc(x.sup)}</td></tr>`).join("");
   const sp=weekSplit(e,r.total);
   const splitHtml = sp.hasContract
-    ? `<div class="tot">Heures contrat (${esc(String(e.contrat))} h) : ${fmtH(sp.normal)}<br>Heures supplémentaires : ${fmtH(sp.sup)}<br>Total réalisé : ${fmtH(r.total)}</div>`
-    : `<div class="tot">Total réalisé : ${fmtH(r.total)}</div>`;
+    ? `<div class="tot">Heures contrat (${esc(String(e.contrat))} h) : ${fmtH(sp.normal)}<br>Total réalisé : ${fmtH(r.total)}<br>Heures supplémentaires : ${fmtH(sp.sup)}</div>`
+    : `<div class="tot">Total réalisé : ${fmtH(r.total)}<br>Heures supplémentaires : ${fmtH(sp.sup)}</div>`;
   const w=window.open("","_blank"); if(!w){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Heures ${esc(empName(e))}</title>
     <style>body{font-family:Arial,sans-serif;color:#111;padding:26px;}h1{font-size:19px;margin:0 0 2px;}.sub{color:#555;margin-bottom:16px;}
@@ -1500,19 +1500,20 @@ function printEmpSign(){
   const rows=r.rows.map(x=>`<tr><td>${esc(x.day)}</td><td>${esc(x.presence)}</td><td style="text-align:right">${esc(x.worked)}</td><td style="text-align:right">${esc(x.sup)}</td></tr>`).join("");
   const sp=weekSplit(e,r.total);
   const splitHtml = sp.hasContract
-    ? `<div class="tot">Heures contrat (${esc(String(e.contrat))} h) : ${fmtH(sp.normal)}<br>Heures supplémentaires : ${fmtH(sp.sup)}<br>Total réalisé : ${fmtH(r.total)}</div>`
-    : `<div class="tot">Total réalisé : ${fmtH(r.total)}</div>`;
+    ? `<div class="tot">Heures contrat (${esc(String(e.contrat))} h) : ${fmtH(sp.normal)}<br>Total réalisé : ${fmtH(r.total)}<br>Heures supplémentaires : ${fmtH(sp.sup)}</div>`
+    : `<div class="tot">Total réalisé : ${fmtH(r.total)}<br>Heures supplémentaires : ${fmtH(sp.sup)}</div>`;
   const w=window.open("","_blank"); if(!w){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Relevé ${esc(empName(e))}</title>
     <style>body{font-family:Arial,sans-serif;color:#111;padding:34px;max-width:640px;margin:auto;}h1{font-size:20px;text-align:center;margin:0 0 18px;}
     .id{font-size:15px;}.per{color:#555;margin:2px 0 16px;}table{width:100%;border-collapse:collapse;font-size:14px;}th,td{border:1px solid #bbb;padding:8px 10px;text-align:left;}th{background:#eee;}
-    .tot{margin-top:14px;font-size:16px;font-weight:bold;}.cert{margin-top:24px;font-size:13px;line-height:1.5;}.signs{display:flex;gap:40px;flex-wrap:wrap;margin-top:30px;}.sign{font-size:13px;}.sign img{border-bottom:1px solid #000;max-width:240px;display:block;margin-top:6px;}.sline{border-bottom:1px solid #000;width:240px;height:60px;margin-top:6px;}</style></head>
+    .tot{margin-top:14px;font-size:16px;font-weight:bold;}.cert{margin-top:24px;font-size:13px;line-height:1.5;}.signdate{margin-top:26px;font-size:13px;font-weight:bold;}.signs{display:flex;gap:40px;flex-wrap:wrap;margin-top:8px;}.sign{font-size:13px;}.sign img{border:1px solid #ccc;border-radius:6px;width:300px;max-width:300px;display:block;margin-top:6px;}.sline{border-bottom:1px solid #000;width:300px;height:80px;margin-top:6px;}</style></head>
     <body><h1>Relevé de présence hebdomadaire</h1>
     <div class="id"><b>${esc(empName(e))}</b>${e.matricule?" — matricule "+esc(e.matricule):""}</div>
     <div class="per">Semaine ${esc(period)}</div>
     <table><thead><tr><th>Jour</th><th>Présence pointée</th><th>Travaillé</th><th>H. sup.</th></tr></thead><tbody>${rows}</tbody></table>
     ${splitHtml}
     <p class="cert">Je soussigné(e) <b>${esc(empName(e))}</b> certifie exact le relevé de mes heures de présence pour la semaine indiquée ci-dessus.</p>
+    ${sig&&sig.signed_at?`<div class="signdate">Signé le ${new Date(sig.signed_at).toLocaleDateString("fr-FR")} à ${new Date(sig.signed_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</div>`:""}
     <div class="signs"><div class="sign">Signature du salarié :${sig&&sig.signature?`<img src="${sig.signature}">`:`<div class="sline"></div>`}</div><div class="sign">Le responsable${sig&&sig.responsable?" ("+esc(sig.responsable)+")":""} :${sig&&sig.respSignature?`<img src="${sig.respSignature}">`:`<div class="sline"></div>`}</div></div>
     </body></html>`);
   w.document.close(); setTimeout(()=>{try{w.print();}catch(e){}},350);
