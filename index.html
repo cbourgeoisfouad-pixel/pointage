@@ -375,6 +375,8 @@
   .cust-field select:focus,.cust-field input:focus{outline:none;border-color:var(--primary);}
   .cust-dates{display:flex;gap:10px;margin-top:10px;}
   .cust-dates .cust-field{flex:1;}
+  .recap-cal{display:flex;align-items:flex-end;gap:8px;margin-bottom:12px;}
+  .recap-clear{flex:none;background:#eef1f4;color:var(--ink);border:none;border-radius:10px;padding:11px 14px;font-weight:700;font-size:13px;cursor:pointer;}
 
   /* barre semaine partagée + relevés à signer */
   .rap-weekbar{display:flex;align-items:center;gap:8px;background:#1f2937;color:#fff;padding:10px 12px;}
@@ -533,7 +535,7 @@
     </div>
     <div class="rap-bulle">
       <div class="rap-bulle-title">📊 Récapitulatifs hebdomadaires (heures sup)</div>
-      <input id="recapSearch" class="rap-search" type="search" placeholder="🔍 Rechercher une semaine (ex. « mai »)…" oninput="renderRecapList()" autocomplete="off">
+      <div class="recap-cal"><label class="cust-field" style="flex:1;">📅 Choisir une semaine (par date)<input type="date" id="recapDate" onchange="renderRecapList()"></label><button class="recap-clear" onclick="document.getElementById('recapDate').value='';renderRecapList();">Toutes</button></div>
       <div id="recapList"></div>
     </div>
     <div class="rap-bulle">
@@ -1383,7 +1385,7 @@ function renderRapport(){
   renderWeekSign();
   renderRecapList();
   const cs=document.getElementById("custEmp"); const cur=cs.value;
-  cs.innerHTML=actives().map(e=>`<option value="${e.id}">${escapeHtml(empName(e))}</option>`).join("");
+  cs.innerHTML=`<option value="ALL">Tous les salariés</option>`+actives().map(e=>`<option value="${e.id}">${escapeHtml(empName(e))}</option>`).join("");
   if(cur && [...cs.options].some(o=>o.value===cur)) cs.value=cur;
   if(!document.getElementById("custStart").value){ document.getElementById("custStart").value=key(mondayOf(startOfToday())); document.getElementById("custEnd").value=key(startOfToday()); }
   renderRapportList();
@@ -1620,11 +1622,14 @@ function printEmpSign(){
 function weekLabelOf(w){ const ws=parseKey(w), last=new Date(ws); last.setDate(ws.getDate()+6); return "Semaine du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"}); }
 function renderRecapList(){
   const cont=document.getElementById("recapList"); if(!cont) return;
-  const norm=s=>String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
-  const q=norm((document.getElementById("recapSearch")?.value||"").trim());
   let weeks=Object.keys(weekSigs).filter(w=>weekSigs[w]&&Object.keys(weekSigs[w]).length>0).sort().reverse();
-  if(q) weeks=weeks.filter(w=>norm(weekLabelOf(w)).includes(q)||w.includes(q));
-  if(!weeks.length){ cont.innerHTML=`<p class="hint">${q?"Aucune semaine pour cette recherche.":"Aucun récapitulatif pour l'instant. Il apparaîtra une fois que tous les salariés auront signé leur semaine."}</p>`; return; }
+  const dv=document.getElementById("recapDate")?document.getElementById("recapDate").value:"";
+  if(dv){
+    const wk=key(mondayOf(parseKey(dv)));
+    weeks=weeks.filter(w=>w===wk);
+    if(!weeks.length){ cont.innerHTML=`<p class="hint">Aucun relevé signé pour la ${weekLabelOf(wk).toLowerCase()}.</p>`; return; }
+  }
+  if(!weeks.length){ cont.innerHTML=`<p class="hint">Aucun récapitulatif pour l'instant. Il apparaîtra une fois que tous les salariés auront signé leur semaine.</p>`; return; }
   const act=actives();
   cont.innerHTML=weeks.map(w=>{
     const signed=act.filter(e=>weekSigs[w]&&weekSigs[w][e.id]).length;
@@ -1661,7 +1666,31 @@ function genCustomReport(){
   if(!empId){ errEl.textContent="Choisis un salarié."; return; }
   if(!s||!en){ errEl.textContent="Choisis les deux dates."; return; }
   if(s>en){ errEl.textContent="La date de début doit être avant la date de fin."; return; }
-  printCustomReport(empId,s,en);
+  if(empId==="ALL") printCustomReportAll(s,en); else printCustomReport(empId,s,en);
+}
+function printCustomReportAll(startKey,endKey){
+  const start=parseKey(startKey), end=parseKey(endKey);
+  const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  let rows="", gTot=0, gSup=0;
+  actives().forEach(e=>{ const pause=parseInt(empPause(e),10)||0; let tot=0, sup=0, n=0;
+    for(let d=new Date(start); d<=end && n<400; d.setDate(d.getDate()+1), n++){ const dk=key(d); const p=planned(dk,e.id), rec=(records[dk]&&records[dk][e.id])||{};
+      if(p.work && rec.arrStatus && rec.arrStatus!=="absent" && rec.arrTime && rec.depTime){ tot+=Math.max(0,(toMin(rec.depTime)-toMin(rec.arrTime))-pause); }
+      sup+=rec.hsMin||0;
+    }
+    gTot+=tot; gSup+=sup;
+    rows+=`<tr><td>${esc(empName(e))}</td><td>${esc(e.matricule||"")}</td><td style="text-align:right">${fmtH(tot)}</td><td style="text-align:right;font-weight:bold">${fmtH(sup)}</td></tr>`;
+  });
+  const period=start.toLocaleDateString("fr-FR")+" au "+end.toLocaleDateString("fr-FR");
+  const win=window.open("","_blank"); if(!win){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Heures sup — tous les salariés</title>
+    <style>body{font-family:Arial,sans-serif;color:#111;padding:30px;}h1{font-size:20px;margin:0 0 2px;}.sub{color:#555;margin-bottom:16px;}
+    table{width:100%;border-collapse:collapse;font-size:14px;}th,td{border:1px solid #bbb;padding:8px 10px;text-align:left;}th{background:#eee;}tfoot td{font-weight:bold;background:#f6f6f6;}</style></head>
+    <body><h1>Heures supplémentaires — tous les salariés</h1><div class="sub">Période ${esc(period)}</div>
+    <table><thead><tr><th>Salarié</th><th>Matricule</th><th>Total réalisé</th><th>Heures sup.</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="2">TOTAL</td><td style="text-align:right">${fmtH(gTot)}</td><td style="text-align:right">${fmtH(gSup)}</td></tr></tfoot></table>
+    </body></html>`);
+  win.document.close(); setTimeout(()=>{try{win.print();}catch(e){}},350);
 }
 function printCustomReport(empId,startKey,endKey){
   const e=employees.find(x=>x.id===empId); if(!e) return;
