@@ -381,6 +381,7 @@
   .es-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
   .es-actions button{flex:1;min-width:150px;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;}
   .btn-mail{background:#0891b2;color:#fff;}
+  .ws-mail{flex:none;background:#e0f2fe;color:#0891b2;border:none;border-radius:9px;width:42px;height:38px;font-size:16px;cursor:pointer;}
   .es-tablewrap{overflow-x:auto;margin-top:4px;-webkit-overflow-scrolling:touch;}
   .es-table .es-num{text-align:right;white-space:nowrap;font-weight:700;}
   .es-split{margin-top:14px;border-top:2px solid var(--ink);padding-top:8px;}
@@ -1390,6 +1391,7 @@ function renderWeekSign(){
     const r=weekRepRows(e); const signed=!!(weekSigs[wk] && weekSigs[wk][e.id]);
     return `<div class="ws-row">
       <div class="ws-main" onclick="openEmpSign('${e.id}')"><div class="ws-name">${escapeHtml(empName(e))}</div><div class="ws-tot">${fmtH(r.total)}</div></div>
+      <button class="ws-mail" onclick="emailEmp('${e.id}')" title="Envoyer par mail">✉️</button>
       <button class="ws-status ${signed?"ok":""}" onclick="openEmpSign('${e.id}')">${signed?"✓ Signé":"À signer"}</button>
     </div>`;
   }).join("");
@@ -1427,7 +1429,6 @@ function openEmpSign(id){
       <div class="form-error" id="empSignErr"></div>
       <div class="es-actions">
         <button class="ov-save" id="empSignSaveBtn" onclick="saveEmpSign()">Valider la signature</button>
-        <button class="btn-mail" onclick="emailEmpSign()">✉️ Envoyer par mail</button>
         <button class="btn-export" onclick="printEmpSign()">🖨️ Imprimer / PDF</button>
       </div>
     </div>`;
@@ -1460,8 +1461,8 @@ async function saveEmpSign(){
   if(!weekSigs[wk]) weekSigs[wk]={}; weekSigs[wk][empSignId]={signature,signed_at:at};
   closeEmpSign();
 }
-function emailEmpSign(){
-  const e=employees.find(x=>x.id===empSignId); if(!e) return;
+function emailEmp(id){
+  const e=employees.find(x=>x.id===id); if(!e) return;
   if(!e.email){ alert("Aucun email renseigné dans la fiche de ce salarié. Ajoute-le dans la page « Salariés »."); return; }
   const r=weekRepRows(e), ws=r.ws, last=new Date(ws); last.setDate(ws.getDate()+6);
   const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
