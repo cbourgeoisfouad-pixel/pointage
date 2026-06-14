@@ -767,27 +767,27 @@ function renderHome(){
     list.innerHTML=`<div class="empty"><p>Aucun salarié actif pour l'instant.<br>Ajoute ton équipe pour commencer.</p>
       <button class="btn-primary" onclick="goPage(4)">＋ Ajouter les salariés</button></div>`; return;
   }
+  const all=actives();
   const working=[], repos=[];
-  actives().forEach(e=>{ (planned(dk,e.id).work?working:repos).push(e); });
+  all.forEach(e=>{ (planned(dk,e.id).work?working:repos).push(e); });
   let banner="";
   if(isVal){
     const v=validated[dk];
     banner=`<div class="valid-banner done">✓ Journée validée${v.signer?` par <b>${escapeHtml(v.signer)}</b>`:""} <button class="vb-link" onclick="goPage(5)">Voir le rapport</button></div>`;
-  } else if(working.length>0 && working.every(e=>dayDone(records[dk]&&records[dk][e.id]))){
+  } else if(all.length>0 && all.every(e=>dayDone(records[dk]&&records[dk][e.id]))){
     banner=`<div class="valid-banner ready"><div>✅ <b>Journée complète</b> — tout le monde est pointé.</div><button class="vb-btn" onclick="openValidate()">✍️ Signer la journée</button></div>`;
   }
   let html=banner;
-  if(working.length===0){
-    html+=`<div class="empty"><p>Personne de prévu ${isToday(viewDate)?"aujourd'hui":"ce jour"}.</p></div>`;
-  } else {
-    const byArr=(a,b)=>{ const ta=toMin(planned(dk,a.id).arr), tb=toMin(planned(dk,b.id).arr); return (ta==null?9999:ta)-(tb==null?9999:tb); };
-    const notDone=[], done=[];
-    working.forEach(e=>{ (dayDone(records[dk]&&records[dk][e.id])?done:notDone).push(e); });
-    notDone.sort(byArr); done.sort(byArr);
-    if(notDone.length) html+=`<div class="section-title">À pointer · par ordre d'arrivée</div>`+notDone.map(e=>card(dk,e,false)).join("");
-    if(done.length) html+=`<div class="section-title">✓ Journée terminée</div>`+done.map(e=>card(dk,e,false)).join("");
-  }
-  if(repos.length) html+=`<div class="section-title">😴 Repos</div><div class="repos">`+repos.map(e=>`<b>${escapeHtml(empName(e))}</b>`).join(" · ")+`</div>`;
+  const byArr=(a,b)=>{ const ta=toMin(planned(dk,a.id).arr), tb=toMin(planned(dk,b.id).arr); return (ta==null?9999:ta)-(tb==null?9999:tb); };
+  const notDone=[], done=[];
+  working.forEach(e=>{ (dayDone(records[dk]&&records[dk][e.id])?done:notDone).push(e); });
+  const reposTodo=[], reposDone=[];
+  repos.forEach(e=>{ (dayDone(records[dk]&&records[dk][e.id])?reposDone:reposTodo).push(e); });
+  notDone.sort(byArr); done.sort(byArr);
+  if(notDone.length) html+=`<div class="section-title">À pointer · par ordre d'arrivée</div>`+notDone.map(e=>card(dk,e,false)).join("");
+  if(reposTodo.length) html+=`<div class="section-title">😴 Repos · à confirmer</div>`+reposTodo.map(e=>card(dk,e,false)).join("");
+  const allDone=done.concat(reposDone);
+  if(allDone.length) html+=`<div class="section-title">✓ Journée terminée</div>`+allDone.map(e=>card(dk,e,false)).join("");
   list.innerHTML=html;
 }
 
@@ -796,7 +796,7 @@ const RETARD_OPTS=(()=>{ const a=[]; for(let m=15;m<=300;m+=15) a.push([m,minLab
 function retardLabel(min){ const o=RETARD_OPTS.find(x=>x[0]===min); return o?o[1]:minLabel(min); }
 const HSUP_OPTS=[[15,"15 min"],[30,"30 min"],[45,"45 min"],[60,"1 heure"],[75,"1 h 15"],[90,"1 h 30"],[105,"1 h 45"],[120,"2 heures"]];
 function hsupLabel(min){ const o=HSUP_OPTS.find(x=>x[0]===min); return o?o[1]:(min+" min"); }
-const ABS_OPTS=[["conge","Congé"],["injustifiee","Absence injustifiée"]];
+const ABS_OPTS=[["repos","Repos"],["conge","Congé"],["injustifiee","Absence injustifiée"]];
 function absLabel(v){ const o=ABS_OPTS.find(x=>x[0]===v); return o?o[1]:""; }
 
 function cardInner(dk,e){
@@ -817,7 +817,7 @@ function cardInner(dk,e){
     arrFoot=`<div class="slot-foot retard-pick">
         <label>Motif</label>
         <select id="absSel-${e.id}">
-          ${ABS_OPTS.map(([v,l])=>`<option value="${v}" ${(en.absMotif||"conge")===v?"selected":""}>${l}</option>`).join("")}
+          ${ABS_OPTS.map(([v,l])=>`<option value="${v}" ${(en.absMotif||(p.work?"conge":"repos"))===v?"selected":""}>${l}</option>`).join("")}
         </select>
         <button class="ret-ok" onclick="okAbsent('${e.id}')">OK</button>
         ${en.absMotif?`<span class="ret-done">✓ ${absLabel(en.absMotif)}</span>`:""}
@@ -885,9 +885,9 @@ function markArr(id,status,btn){
   if(personEl) personEl.innerHTML=cardInner(dk,e); else renderHome();
 }
 function okAbsent(id){
-  const dk=key(viewDate), en=recEntry(dk,id);
+  const dk=key(viewDate), en=recEntry(dk,id), p=planned(dk,id);
   const sel=document.getElementById("absSel-"+id);
-  en.absMotif=sel?sel.value:(en.absMotif||"conge");
+  en.absMotif=sel?sel.value:(en.absMotif||(p.work?"conge":"repos"));
   if(en.arrStatus!=="absent") en.arrStatus="absent";
   pushRec(dk,id);
   // motif validé → la journée est réglée → on montre la confirmation puis on descend
@@ -1334,7 +1334,7 @@ function respOptions(selected){
 function dayLocked(dk){ return !!validated[dk]; }
 function buildSnapshot(dk){
   const rows=[];
-  actives().forEach(e=>{ const p=planned(dk,e.id); if(!p.work) return; const en=(records[dk]&&records[dk][e.id])||{};
+  actives().forEach(e=>{ const p=planned(dk,e.id); const en=(records[dk]&&records[dk][e.id])||{}; if(!p.work && !en.arrStatus) return;
     rows.push({nom:empName(e),matricule:e.matricule||"",poste:e.poste||"laveur",planArr:p.arr||"",planDep:p.dep||"",
       arrStatus:en.arrStatus||"",arrTime:en.arrTime||"",retardMin:en.retardMin||0,absMotif:en.absMotif||"",
       depStatus:en.depStatus||"",depTime:en.depTime||"",hsMin:en.hsMin||0,nbJobs:en.nbJobs||""}); });
