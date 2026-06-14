@@ -377,6 +377,8 @@
   .es-total{margin-top:12px;font-size:15px;font-weight:800;}
   .es-cert{margin-top:14px;font-size:13px;color:#374151;line-height:1.5;}
   .es-signed{margin:0 12px;color:var(--green);font-weight:700;}
+  .es-sigshow{margin:8px 12px;display:flex;flex-direction:column;gap:14px;}
+  .es-sigshow img{margin-top:6px;}
   .es-sigzone{margin:12px;}
   .es-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
   .es-actions button{flex:1;min-width:150px;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;}
@@ -1421,28 +1423,42 @@ let empSignId=null, empSigPad=null, respSigPad=null;
 function openEmpSign(id){
   empSignId=id; const e=employees.find(x=>x.id===id); if(!e) return;
   const wk=weekKeyOf(), sig=weekSigs[wk] && weekSigs[wk][id];
-  document.getElementById("empSignBody").innerHTML=empSignDocHTML(e)+`
-    ${sig?`<div class="es-signed">✓ Déjà signé${sig.signed_at?` le ${new Date(sig.signed_at).toLocaleDateString("fr-FR")}`:""}${sig.responsable?` · responsable : ${escapeHtml(sig.responsable)}`:""}</div>`:""}
-    <div class="es-sigzone">
-      <div class="val-sig-lbl">Signature du salarié (dans le cadre)</div>
-      <canvas id="empSigCanvas" class="sig-canvas"></canvas>
-      <button class="sig-clear" onclick="clearEmpSig()">Effacer</button>
-      <label class="val-field" style="margin-top:16px;">Le responsable
-        <select id="respSelect"></select>
-      </label>
-      <div class="val-sig-lbl">Signature du responsable</div>
-      <canvas id="respSigCanvas" class="sig-canvas"></canvas>
-      <button class="sig-clear" onclick="clearRespSig()">Effacer</button>
-      <div class="form-error" id="empSignErr"></div>
-      <div class="es-actions">
-        <button class="ov-save" id="empSignSaveBtn" onclick="saveEmpSign()">Valider les signatures</button>
-        <button class="btn-export" onclick="printEmpSign()">🖨️ Imprimer / PDF</button>
+  let section;
+  if(sig){
+    const dt=sig.signed_at?`le ${new Date(sig.signed_at).toLocaleDateString("fr-FR")} à ${new Date(sig.signed_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}`:"";
+    section=`
+      <div class="es-signed">✓ Relevé déjà signé ${dt} — non modifiable</div>
+      <div class="es-sigshow">
+        <div><div class="val-sig-lbl">Signature du salarié</div>${sig.signature?`<img class="rap-sign-img" src="${sig.signature}">`:"—"}</div>
+        <div><div class="val-sig-lbl">Le responsable${sig.responsable?` (${escapeHtml(sig.responsable)})`:""}</div>${sig.respSignature?`<img class="rap-sign-img" src="${sig.respSignature}">`:"—"}</div>
       </div>
-    </div>`;
-  document.getElementById("respSelect").innerHTML=SIGNERS.map(s=>`<option value="${escapeAttr(s)}">${escapeHtml(s)}</option>`).join("");
-  if(sig && sig.responsable) document.getElementById("respSelect").value=sig.responsable;
+      <div class="es-actions"><button class="btn-export" onclick="printEmpSign()">🖨️ Imprimer / PDF</button></div>`;
+  } else {
+    section=`
+      <div class="es-sigzone">
+        <div class="val-sig-lbl">Signature du salarié (dans le cadre)</div>
+        <canvas id="empSigCanvas" class="sig-canvas"></canvas>
+        <button class="sig-clear" onclick="clearEmpSig()">Effacer</button>
+        <label class="val-field" style="margin-top:16px;">Le responsable
+          <select id="respSelect"></select>
+        </label>
+        <div class="val-sig-lbl">Signature du responsable</div>
+        <canvas id="respSigCanvas" class="sig-canvas"></canvas>
+        <button class="sig-clear" onclick="clearRespSig()">Effacer</button>
+        <div class="form-error" id="empSignErr"></div>
+        <div class="es-actions">
+          <button class="ov-save" id="empSignSaveBtn" onclick="saveEmpSign()">Valider les signatures</button>
+          <button class="btn-export" onclick="printEmpSign()">🖨️ Imprimer / PDF</button>
+        </div>
+      </div>`;
+  }
+  document.getElementById("empSignBody").innerHTML=empSignDocHTML(e)+section;
   document.getElementById("empSign").classList.add("show"); window.scrollTo(0,0);
-  setTimeout(()=>{ empSigPad=initEmpPad("empSigCanvas"); respSigPad=initEmpPad("respSigCanvas"); },60);
+  if(sig){ empSigPad=null; respSigPad=null; }
+  else {
+    document.getElementById("respSelect").innerHTML=SIGNERS.map(s=>`<option value="${escapeAttr(s)}">${escapeHtml(s)}</option>`).join("");
+    setTimeout(()=>{ empSigPad=initEmpPad("empSigCanvas"); respSigPad=initEmpPad("respSigCanvas"); },60);
+  }
 }
 function initEmpPad(canvasId){
   const c=document.getElementById(canvasId); if(!c) return null;
@@ -1477,6 +1493,7 @@ function cropSig(canvas){
 }
 function closeEmpSign(){ document.getElementById("empSign").classList.remove("show"); if(currentPage===5) renderWeekSign(); }
 async function saveEmpSign(){
+  const wkg=weekKeyOf(); if(weekSigs[wkg] && weekSigs[wkg][empSignId]){ alert("Ce relevé est déjà signé, il ne peut plus être modifié."); closeEmpSign(); return; }
   const errEl=document.getElementById("empSignErr"); errEl.textContent="";
   if(!empSigPad || empSigPad.empty){ errEl.textContent="Le salarié doit signer dans le cadre."; return; }
   if(!respSigPad || respSigPad.empty){ errEl.textContent="Le responsable doit aussi signer."; return; }
