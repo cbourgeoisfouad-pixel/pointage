@@ -96,6 +96,8 @@
   .slot-head{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;}
   .slot-head .lbl{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
   .slot-head .plan{font-size:17px;font-weight:800;}
+  .slot-head .plan-edit{cursor:pointer;color:#1d4ed8;border-bottom:1px dashed #93b4f7;padding-bottom:1px;}
+  .slot-head .plan-edit.none{color:var(--muted);}
   .slot-head .plan.none{color:var(--muted);font-weight:600;}
   .qbtns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;}
   .qbtns button{border:1.5px solid var(--line);background:#fff;color:var(--muted);padding:11px 0;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;transition:transform .05s;}
@@ -862,7 +864,7 @@ function cardInner(dk,e){
   }
   const arrBlock=`
     <div class="slot">
-      <div class="slot-head"><span class="lbl">Arrivée</span><span class="plan ${p.arr?"":"none"}">${p.arr||"—"}</span></div>
+      <div class="slot-head"><span class="lbl">Arrivée</span><span class="plan plan-edit ${p.arr?"":"none"}" onclick="openSchedule('${e.id}','${dk}')" title="Modifier l'horaire d'arrivée (visible aussi dans Plannings semaine)">${p.arr||"—"} ✎</span></div>
       <div class="qbtns">
         <button class="${en.arrStatus==="present"?"sel green":""}" onclick="markArr('${e.id}','present',this)">✓ Arrivé</button>
         <button class="${en.arrStatus==="retard"?"sel amber":""}" onclick="markArr('${e.id}','retard',this)">Retard</button>
@@ -887,7 +889,7 @@ function cardInner(dk,e){
   }
   const depBlock = en.arrStatus==="absent" ? "" : `
     <div class="slot">
-      <div class="slot-head"><span class="lbl">Sortie</span><span class="plan ${p.dep?"":"none"}">${p.dep||"—"}</span></div>
+      <div class="slot-head"><span class="lbl">Sortie</span><span class="plan plan-edit ${p.dep?"":"none"}" onclick="openSchedule('${e.id}','${dk}')" title="Modifier l'horaire de sortie (visible aussi dans Plannings semaine)">${p.dep||"—"} ✎</span></div>
       <div class="qbtns">
         <button class="${en.depStatus==="parti"?"sel green":""}" onclick="markDep('${e.id}','parti',this)">✓ Parti</button>
         <button class="${en.depStatus==="avance"?"sel blue":""}" onclick="markDep('${e.id}','avance',this)">Avance</button>
