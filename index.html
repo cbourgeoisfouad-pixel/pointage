@@ -516,9 +516,9 @@
   <div class="bulk-bar">
     <button class="btn-export" style="margin:0;width:100%;" onclick="applyRefToWeek()">↺ Appliquer la semaine de référence à cette semaine</button>
     <div class="bulk-msg" id="weekResetMsg"></div>
-    <p class="hint" style="padding:8px 0 0;">Efface les horaires ponctuels de la semaine affichée : elle revient à la semaine de référence.</p>
+    <p class="hint" style="padding:8px 0 0;">Copie les horaires de la semaine de référence sur la semaine affichée et les fige : tu peux ensuite les modifier librement, sans aucun lien avec la référence.</p>
   </div>
-  <p class="hint">Touche une case pour fixer ou modifier l'horaire d'un jour (utile pour préparer la semaine suivante). Par défaut, c'est la semaine type qui s'affiche ; les cases modifiées apparaissent en bleu. Pour changer les horaires habituels qui se répètent, va dans « Semaine de référence » (ou page « Salariés » → 🕗 Horaires).</p>
+  <p class="hint">Touche une case pour fixer ou modifier l'horaire d'un jour. <b>Blanc</b> = la case suit la semaine de référence (si tu modifies la référence, ça se met à jour ici). <b>Bleu</b> = horaire figé pour cette semaine uniquement (indépendant de la référence). Pour changer les horaires habituels qui se répètent, va dans « Semaine de référence » (ou page « Salariés » → 🕗 Horaires).</p>
 </section>
 <section class="page" id="page3">
   <div class="week-head"><div class="week-label">Semaine de référence</div></div>
@@ -1273,14 +1273,16 @@ function applyRefToWeek(){
   const ws=mondayOf(weekRef), list=actives(), msg=document.getElementById("weekResetMsg");
   if(!list.length){ if(msg){msg.textContent="Aucun salarié actif."; msg.className="bulk-msg err";} return; }
   const lbl=document.getElementById("weekLabel")?.textContent||"cette semaine";
-  if(!confirm(`Appliquer la semaine de référence à « ${lbl} » ?\n\nLes horaires de cette semaine reviendront à la semaine de référence pour les ${list.length} salariés actifs (les modifications ponctuelles de cette semaine seront effacées).`)) return;
-  let cleared=0;
-  for(let i=0;i<7;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); const dk=key(d);
-    list.forEach(e=>{ if(overrides[dk] && overrides[dk][e.id]){ delete overrides[dk][e.id]; delOvrRow(dk,e.id); cleared++; } });
-    if(overrides[dk] && !Object.keys(overrides[dk]).length) delete overrides[dk];
+  if(!confirm(`Appliquer la semaine de référence à « ${lbl} » ?\n\nLes horaires de la semaine de référence seront copiés sur cette semaine pour les ${list.length} salariés actifs. Ils seront figés pour cette semaine : tu pourras les modifier sans que ça touche la référence, et une modif future de la référence ne changera plus cette semaine.`)) return;
+  // copie (matérialise) les horaires de la référence dans la semaine : photo figée, plus de lien avec la référence
+  for(let i=0;i<6;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); const dk=key(d), wd=d.getDay();   // lundi → samedi
+    list.forEach(e=>{ ensureTemplate(e.id); const t=templates[e.id][wd]||{work:false,arr:"",dep:""};
+      if(!overrides[dk]) overrides[dk]={};
+      overrides[dk][e.id]={work:!!t.work, arr:t.work?(t.arr||""):"", dep:t.work?(t.dep||""):""};
+      pushOvr(dk,e.id); });
   }
   renderWeek();
-  if(msg){ msg.textContent=`✓ Semaine de référence appliquée (${cleared} horaire(s) ponctuel(s) effacé(s)).`; msg.className="bulk-msg ok"; }
+  if(msg){ msg.textContent=`✓ Semaine de référence copiée sur cette semaine. Tu peux maintenant modifier ces horaires librement.`; msg.className="bulk-msg ok"; }
 }
 
 function renderHistory(){
