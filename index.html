@@ -1343,18 +1343,16 @@ function actives(){ return employees.filter(e=>!e.archived); }
    CONNEXION (Supabase Auth) + DÉMARRAGE
    ========================================================= */
 async function boot(){
-  try{
-    const {data:{session}}=await sb.auth.getSession();
-    if(session) await enterApp(); else showLogin();
-    sb.auth.onAuthStateChange((ev,sess)=>{ if(ev==="SIGNED_IN" && sess){ enterApp(); } if(ev==="SIGNED_OUT"){ location.reload(); } });
-  }catch(e){ console.error("boot",e); showLogin(); }
+  // Accès direct par l'URL : plus d'écran de connexion.
+  try{ await enterApp(); }
+  catch(e){ console.error("boot",e); }
 }
-function showLogin(){ document.getElementById("login").classList.add("show"); }
+function showLogin(){ /* connexion supprimée : accès direct */ }
 let _entered=false;
 async function enterApp(){
   if(_entered) return; _entered=true;
-  document.getElementById("login").classList.remove("show");
-  document.getElementById("logoutBtn").style.display="";
+  const lg=document.getElementById("login"); if(lg) lg.classList.remove("show");
+  const lo=document.getElementById("logoutBtn"); if(lo) lo.style.display="none";
   await loadAll();
   maybeOfferImport();
   goPage(currentPage||1);
