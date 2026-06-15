@@ -983,7 +983,11 @@ function renderEmployees(){
   const norm=s=>String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
   const q=norm((document.getElementById("empSearch")?.value||"").trim());
   const match=e=>!q || norm(empName(e)).includes(q) || norm(e.matricule||"").includes(q);
-  const act=employees.filter(e=>!e.archived && match(e)), arch=employees.filter(e=>e.archived && match(e));
+  const byMat=(a,b)=>{ const ma=(a.matricule||"").trim(), mb=(b.matricule||"").trim();
+    if(!ma && !mb) return empName(a).localeCompare(empName(b),"fr");
+    if(!ma) return 1; if(!mb) return -1;   // sans matricule à la fin
+    return ma.localeCompare(mb,"fr",{numeric:true,sensitivity:"base"}); };
+  const act=employees.filter(e=>!e.archived && match(e)).sort(byMat), arch=employees.filter(e=>e.archived && match(e)).sort(byMat);
   let html="";
   if(act.length===0 && !q){ html+=`<p class="hint">Aucun salarié actif. Touche « Ajouter un salarié » ci-dessous.</p>`; }
   else html+=act.map(e=>`
