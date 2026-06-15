@@ -598,8 +598,8 @@
   <div class="preset">
     <div class="row">
       <span class="hint2">Remplissage rapide :</span>
-      <input type="time" id="presetArr" value="08:00"> <span class="arrow">→</span>
-      <input type="time" id="presetDep" value="17:00">
+      <input type="time" id="presetArr" value="09:00"> <span class="arrow">→</span>
+      <input type="time" id="presetDep" value="18:00">
     </div>
     <div class="row">
       <button class="pbtn" onclick="applyPreset([1,2,3,4,5])">Appliquer Lun→Ven</button>
@@ -745,8 +745,8 @@ function pushRec(dk,id){ const en=recEntry(dk,id); sb.from("records").upsert({da
 function pushOvr(dk,id){ const o=overrides[dk][id]; sb.from("overrides").upsert({date:dk,emp_id:id,work:!!o.work,arr:o.arr||null,dep:o.dep||null}).then(({error})=>syncErr("pushOvr",error)); }
 function delOvrRow(dk,id){ sb.from("overrides").delete().match({date:dk,emp_id:id}).then(({error})=>syncErr("delOvr",error)); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
-function defaultTemplate(){ const t={}; for(let d=0;d<7;d++) t[d]={work:false,arr:"08:00",dep:"17:00"}; [1,2,3,4,5].forEach(d=>t[d].work=true); return t; }
-function ensureTemplate(id){ if(!templates[id]) templates[id]=defaultTemplate(); for(let d=0;d<7;d++) if(!templates[id][d]) templates[id][d]={work:false,arr:"08:00",dep:"17:00"}; }
+function defaultTemplate(){ const t={}; for(let d=0;d<7;d++) t[d]={work:false,arr:"09:00",dep:"18:00"}; [1,2,3,4,5].forEach(d=>t[d].work=true); return t; }
+function ensureTemplate(id){ if(!templates[id]) templates[id]=defaultTemplate(); for(let d=0;d<7;d++) if(!templates[id][d]) templates[id][d]={work:false,arr:"09:00",dep:"18:00"}; }
 
 function startOfToday(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
 function key(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -1183,7 +1183,7 @@ function openSchedule(id,dk){
   const e=employees.find(x=>x.id===id), p=planned(dk,id);
   document.getElementById("schedTitle").textContent="Horaire de ce jour";
   document.getElementById("schedSub").innerHTML=`<b>${escapeHtml(empName(e))}</b> — ${frDate(parseKey(dk))}`;
-  document.getElementById("schedCard").innerHTML=schedCardHTML(p.work, p.arr||"08:00", p.dep||"17:00");
+  document.getElementById("schedCard").innerHTML=schedCardHTML(p.work, p.arr||"09:00", p.dep||"18:00");
   document.getElementById("schedReset").style.display="";
   document.getElementById("schedNote").textContent="Ne change que ce jour précis. La semaine de référence n'est pas modifiée.";
   showModal();
@@ -1193,7 +1193,7 @@ function openBase(id,wd){
   const e=employees.find(x=>x.id===id), day=templates[id][wd];
   document.getElementById("schedTitle").textContent="Horaire habituel";
   document.getElementById("schedSub").innerHTML=`<b>${escapeHtml(empName(e))}</b> — tous les ${JOURS_FULL[wd]}s`;
-  document.getElementById("schedCard").innerHTML=schedCardHTML(day.work, day.arr||"08:00", day.dep||"17:00");
+  document.getElementById("schedCard").innerHTML=schedCardHTML(day.work, day.arr||"09:00", day.dep||"18:00");
   document.getElementById("schedReset").style.display="none";
   document.getElementById("schedNote").textContent="S'applique automatiquement à toutes les semaines à venir.";
   showModal();
