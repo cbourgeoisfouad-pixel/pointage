@@ -378,6 +378,18 @@
   .recap-cal{display:flex;align-items:flex-end;gap:8px;margin-bottom:12px;}
   .recap-clear{flex:none;background:#eef1f4;color:var(--ink);border:none;border-radius:10px;padding:11px 14px;font-weight:700;font-size:13px;cursor:pointer;}
 
+  /* barre : appliquer le même horaire à tous (semaine de référence) */
+  .bulk-bar{margin:14px 16px 0;background:var(--card);border-radius:14px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .bulk-title{font-weight:800;font-size:14px;margin-bottom:10px;}
+  .bulk-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;}
+  .bulk-row label{display:flex;flex-direction:column;font-size:12px;font-weight:700;color:var(--muted);gap:4px;}
+  .bulk-row input[type=time]{border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-size:15px;}
+  .bulk-arrow{align-self:center;font-size:18px;color:var(--muted);padding-bottom:8px;}
+  .bulk-apply{flex:none;margin:0;}
+  .bulk-msg{margin-top:10px;font-size:13px;font-weight:700;}
+  .bulk-msg.ok{color:#047857;}
+  .bulk-msg.err{color:#dc2626;}
+
   /* barre semaine partagée + relevés à signer */
   .rap-weekbar{display:flex;align-items:center;gap:8px;background:#1f2937;color:#fff;padding:10px 12px;}
   .rap-weekbar span{flex:1;text-align:center;font-weight:800;font-size:15px;text-transform:capitalize;}
@@ -507,6 +519,16 @@
   <div class="week-head"><div class="week-label">Semaine de référence</div></div>
   <p class="hint" style="padding:12px 16px 0;">Horaires de base appliqués <b>automatiquement à toutes les semaines à venir</b>. C'est la trame qui se répète.</p>
   <div class="week-wrap" id="baseWrap"></div>
+  <div class="bulk-bar">
+    <div class="bulk-title">⏱️ Appliquer le même horaire à tous les salariés</div>
+    <div class="bulk-row">
+      <label>Arrivée<input type="time" id="bulkArr" value="09:00"></label>
+      <span class="bulk-arrow">→</span>
+      <label>Sortie<input type="time" id="bulkDep" value="18:00"></label>
+      <button class="btn-export bulk-apply" onclick="applyBulkHours()">Appliquer à tous</button>
+    </div>
+    <div class="bulk-msg" id="bulkMsg"></div>
+  </div>
   <p class="hint">Touche une case pour régler l'horaire habituel d'un jour. Pour un changement ponctuel sur une semaine donnée, utilise « Plannings semaine ».</p>
 </section>
 <section class="page" id="page4">
@@ -1203,6 +1225,18 @@ function renderBase(){
     return "<tr>"+row+"</tr>";
   }).join("");
   document.getElementById("baseWrap").innerHTML=`<table class="wk"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+}
+function applyBulkHours(){
+  const arr=document.getElementById("bulkArr").value, dep=document.getElementById("bulkDep").value;
+  const msg=document.getElementById("bulkMsg");
+  if(!arr||!dep){ msg.textContent="Renseigne l'arrivée et la sortie."; msg.className="bulk-msg err"; return; }
+  if(arr>=dep){ msg.textContent="L'arrivée doit être avant la sortie."; msg.className="bulk-msg err"; return; }
+  const list=actives();
+  if(!list.length){ msg.textContent="Aucun salarié actif."; msg.className="bulk-msg err"; return; }
+  if(!confirm(`Mettre l'horaire ${arr} → ${dep} sur tous les jours travaillés de la semaine de référence, pour les ${list.length} salariés actifs ?`)) return;
+  list.forEach(e=>{ ensureTemplate(e.id); for(let d=0;d<7;d++){ if(templates[e.id][d] && templates[e.id][d].work){ templates[e.id][d].arr=arr; templates[e.id][d].dep=dep; } } pushEmp(e.id); });
+  renderBase();
+  msg.textContent=`✓ Horaire ${arr} → ${dep} appliqué à ${list.length} salarié(s).`; msg.className="bulk-msg ok";
 }
 
 /* ----- Page 2 : plannings de la semaine ----- */
