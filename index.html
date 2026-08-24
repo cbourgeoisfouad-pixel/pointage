@@ -149,6 +149,12 @@
   .preset .pbtn{background:var(--blue-bg);color:var(--blue);border:none;border-radius:9px;padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer;}
   .preset .hint2{color:var(--muted);font-size:12px;}
   .tpl-day{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:12px;padding:10px 12px;margin:0 12px 8px;}
+  .tpl-total{background:var(--card);border-radius:14px;padding:12px 14px;margin:12px;border:2px solid #1f2937;}
+  .tpl-total .tt-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:15px;}
+  .tpl-total .tt-row b{font-size:16px;}
+  .tpl-total .tt-sub{font-size:12px;color:#6b7280;padding:2px 0 6px;}
+  .tpl-total .tt-sup b{color:#b45309;}
+  .tpl-total .tt-zero b{color:#6b7280;font-weight:600;}
   .tpl-day .dname{width:42px;font-weight:800;font-size:14px;flex:none;}
   .tpl-day .times{display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end;}
   .tpl-day .times input[type="time"]{border:1.5px solid var(--line);border-radius:9px;padding:9px 8px;font-size:15px;font-weight:700;width:104px;}
@@ -616,6 +622,7 @@
     </div>
   </div>
   <div id="tplDays"></div>
+  <div id="tplTotal" class="tpl-total"></div>
   <p class="hint">Décoche un jour pour « repos ». Tu peux mettre une heure différente chaque jour.</p>
 </div>
 
@@ -1163,16 +1170,42 @@ function renderTemplate(){
       <label class="sw"><input type="checkbox" ${day.work?"checked":""} onchange="setTplWork(${d},this.checked)"><span class="slider"></span></label>
       <span class="dname">${JOURS_C[d]}</span>
       ${day.work?`<span class="times">
-          <input type="time" value="${day.arr||""}" onchange="setTplArr(${d},this.value)">
+          <input type="time" value="${day.arr||""}" oninput="tplLive(${d},'arr',this.value)" onchange="setTplArr(${d},this.value)">
           <span class="arrow">→</span>
-          <input type="time" value="${day.dep||""}" onchange="setTplDep(${d},this.value)">
+          <input type="time" value="${day.dep||""}" oninput="tplLive(${d},'dep',this.value)" onchange="setTplDep(${d},this.value)">
         </span>`:`<span class="reposlbl">repos</span>`}
     </div>`;
   }).join("");
+  renderTplTotal();
 }
+/* Compteur en direct : heures travaillées de la semaine type + heures sup vs contrat */
+function renderTplTotal(){
+  const box=document.getElementById("tplTotal"); if(!box) return;
+  const e=employees.find(x=>x.id===currentEmp); if(!e){ box.innerHTML=""; return; }
+  const t=templates[currentEmp], pause=parseInt(empPause(e),10)||0;
+  let total=0, nbDays=0, incomplete=0;
+  ORDRE.forEach(d=>{
+    const day=t[d]; if(!day||!day.work) return;
+    const a=toMin(day.arr), b=toMin(day.dep);
+    if(a==null||b==null||b<=a){ incomplete++; return; }
+    total+=Math.max(0,(b-a)-pause); nbDays++;
+  });
+  const s=weekSplit(e,total);
+  let rows=`<div class="tt-row"><span>⏱️ Heures travaillées / semaine</span><b>${fmtH(total)}</b></div>
+    <div class="tt-sub">${nbDays} jour${nbDays>1?"s":""} travaillé${nbDays>1?"s":""} − ${pause} min de pause/jour${incomplete?` · ⚠️ ${incomplete} jour(s) sans horaire complet`:""}</div>`;
+  if(s.hasContract){
+    const ch=String(e.contrat).replace(".",",");
+    rows+=`<div class="tt-row"><span>📄 Contrat</span><b>${ch} h</b></div>
+      <div class="tt-row ${s.sup>0?"tt-sup":"tt-zero"}"><span>💪 Heures supplémentaires</span><b>${s.sup>0?"+ "+fmtH(s.sup):"aucune"}</b></div>`;
+  } else {
+    rows+=`<div class="tt-sub">Renseigne le contrat (ex. 35 h) dans la fiche du salarié pour voir les heures sup.</div>`;
+  }
+  box.innerHTML=rows;
+}
+function tplLive(d,k,v){ templates[currentEmp][d][k]=v; renderTplTotal(); } // aperçu instantané (sans écriture en base)
 function setTplWork(d,on){ templates[currentEmp][d].work=on; pushEmp(currentEmp); renderTemplate(); }
-function setTplArr(d,v){ templates[currentEmp][d].arr=v; pushEmp(currentEmp); }
-function setTplDep(d,v){ templates[currentEmp][d].dep=v; pushEmp(currentEmp); }
+function setTplArr(d,v){ templates[currentEmp][d].arr=v; pushEmp(currentEmp); renderTplTotal(); }
+function setTplDep(d,v){ templates[currentEmp][d].dep=v; pushEmp(currentEmp); renderTplTotal(); }
 function applyPreset(days){ const a=document.getElementById("presetArr").value,b=document.getElementById("presetDep").value; days.forEach(d=>{ templates[currentEmp][d]={work:true,arr:a,dep:b}; }); pushEmp(currentEmp); renderTemplate(); }
 
 /* ----- Menu modal : éditer un horaire (jour précis OU habituel) ----- */
