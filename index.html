@@ -1812,19 +1812,45 @@ function printWeekRecap(w){
   const ws=parseKey(w), last=new Date(ws); last.setDate(ws.getDate()+5);
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
-  let rows="", gTot=0, gSup=0;
-  const parts=weekParticipants(w); (parts.length?parts:actives()).forEach(e=>{ const r=weekRepRows(e,ws); const sp=weekSplit(e,r.total); gTot+=r.total; gSup+=sp.sup;
+  const parts=weekParticipants(w); const list=(parts.length?parts:actives()).slice()
+    .sort((a,b)=>String(a.matricule||"").localeCompare(String(b.matricule||""),"fr",{numeric:true}));
+  // Page 1 : récap global (matricule en 1re colonne)
+  let rows="", gTot=0, gSup=0; const details=[];
+  list.forEach(e=>{ const r=weekRepRows(e,ws); const sp=weekSplit(e,r.total); gTot+=r.total; gSup+=sp.sup;
     const sig=weekSigs[w]&&weekSigs[w][e.id];
-    const sigCell=sig&&sig.signature?`<img src="${sig.signature}" style="max-width:150px;max-height:55px;">`:"—";
-    rows+=`<tr><td>${esc(empName(e))}</td><td>${esc(e.matricule||"")}</td><td>${e.contrat?esc(e.contrat)+" h":"—"}</td><td style="text-align:right">${fmtH(r.total)}</td><td style="text-align:right;font-weight:bold">${fmtH(sp.sup)}</td><td>${sigCell}</td></tr>`; });
+    const sigImg=sig&&sig.signature?`<img src="${sig.signature}" style="max-width:150px;max-height:55px;">`:"—";
+    rows+=`<tr><td>${esc(e.matricule||"")}</td><td>${esc(empName(e))}</td><td>${e.contrat?esc(e.contrat)+" h":"—"}</td><td style="text-align:right">${fmtH(r.total)}</td><td style="text-align:right;font-weight:bold">${fmtH(sp.sup)}</td><td style="text-align:center">${sigImg}</td></tr>`;
+    details.push({e,r,sp,sigImg});
+  });
+  // Pages suivantes : détail jour par jour de chaque salarié
+  let pages="";
+  details.forEach(({e,r,sp,sigImg})=>{
+    const dayRows=r.rows.map(x=>`<tr><td>${esc(x.day)}</td><td>${x.detail}</td><td style="text-align:right">${x.worked}</td></tr>`).join("");
+    pages+=`<div class="emp-page">
+      <h2>${esc(e.matricule||"—")} — ${esc(empName(e))}</h2><div class="sub">Détail de la semaine ${esc(period)}</div>
+      <table><thead><tr><th>Jour</th><th>Présence</th><th style="text-align:right">Travaillé</th></tr></thead>
+      <tbody>${dayRows}</tbody>
+      <tfoot>
+        <tr><td colspan="2">Total semaine</td><td style="text-align:right">${fmtH(r.total)}</td></tr>
+        <tr><td colspan="2">Contrat hebdomadaire</td><td style="text-align:right">${e.contrat?esc(e.contrat)+" h":"—"}</td></tr>
+        <tr class="hsrow"><td colspan="2">HEURES SUPPLÉMENTAIRES</td><td style="text-align:right">${sp.sup>0?"+ "+fmtH(sp.sup):"aucune"}</td></tr>
+      </tfoot></table>
+      <div class="sigline">Signature du salarié : ${sigImg}</div>
+    </div>`;
+  });
   const win=window.open("","_blank"); if(!win){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Récap heures sup — ${esc(period)}</title>
-    <style>body{font-family:Arial,sans-serif;color:#111;padding:30px;}h1{font-size:20px;margin:0 0 2px;}.sub{color:#555;margin-bottom:16px;}
-    table{width:100%;border-collapse:collapse;font-size:14px;}th,td{border:1px solid #bbb;padding:8px 10px;text-align:left;}th{background:#eee;}tfoot td{font-weight:bold;background:#f6f6f6;}</style></head>
-    <body><h1>Récapitulatif des heures supplémentaires</h1><div class="sub">Semaine ${esc(period)}</div>
-    <table><thead><tr><th>Salarié</th><th>Matricule</th><th>Contrat</th><th>Total réalisé</th><th>Heures sup.</th><th>Signature</th></tr></thead>
+    <style>body{font-family:Arial,sans-serif;color:#111;padding:30px;}h1{font-size:20px;margin:0 0 2px;}h2{font-size:17px;margin:0 0 2px;}.sub{color:#555;margin-bottom:16px;}
+    table{width:100%;border-collapse:collapse;font-size:14px;}th,td{border:1px solid #bbb;padding:8px 10px;text-align:left;}th{background:#eee;}tfoot td{font-weight:bold;background:#f6f6f6;}
+    .hsrow td{color:#b45309;}.wr-repos,.wr-none{color:#999;}.wr-abs{color:#b91c1c;}.wr-partial{color:#b45309;}
+    .emp-page{page-break-before:always;padding-top:6px;}.note{color:#888;font-size:11px;margin-top:10px;}
+    .sigline{margin-top:14px;font-size:13px;color:#333;display:flex;align-items:center;gap:10px;}</style></head>
+    <body><h1>Récapitulatif des heures supplémentaires — US CAR WASH</h1><div class="sub">Semaine ${esc(period)}</div>
+    <table><thead><tr><th>Matricule</th><th>Salarié</th><th>Contrat</th><th>Total réalisé</th><th>Heures sup.</th><th>Signature</th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr><td colspan="3">TOTAL</td><td style="text-align:right">${fmtH(gTot)}</td><td style="text-align:right">${fmtH(gSup)}</td><td></td></tr></tfoot></table>
+    <div class="note">Le détail jour par jour de chaque salarié figure dans les pages suivantes.</div>
+    ${pages}
     </body></html>`);
   win.document.close(); setTimeout(()=>{try{win.print();}catch(e){}},350);
 }
