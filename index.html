@@ -149,6 +149,13 @@
   .preset .pbtn{background:var(--blue-bg);color:var(--blue);border:none;border-radius:9px;padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer;}
   .preset .hint2{color:var(--muted);font-size:12px;}
   .tpl-day{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:12px;padding:10px 12px;margin:0 12px 8px;}
+  .day-stats{display:flex;gap:8px;margin:12px;}
+  .day-stats .ds-item{flex:1;background:var(--card);border-radius:12px;padding:10px 6px;text-align:center;display:flex;flex-direction:column;gap:2px;}
+  .day-stats .ds-item b{font-size:20px;line-height:1;}
+  .day-stats .ds-item span{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;}
+  .day-stats .ds-green b{color:#15803d;}
+  .day-stats .ds-red b{color:#b91c1c;}
+  .day-stats .ds-gray b{color:#6b7280;}
   .tpl-total{background:var(--card);border-radius:14px;padding:12px 14px;margin:12px;border:2px solid #1f2937;}
   .tpl-total .tt-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:15px;}
   .tpl-total .tt-row b{font-size:16px;}
@@ -825,7 +832,17 @@ function renderHome(){
   } else if(all.length>0 && all.every(e=>dayDone(records[dk]&&records[dk][e.id]))){
     banner=`<div class="valid-banner ready"><div>✅ <b>Journée complète</b> — tout le monde est pointé.</div><button class="vb-btn" onclick="openValidate()">✍️ Signer la journée</button></div>`;
   }
-  let html=banner;
+  // Bandeau compteurs : prévus / repos / présents pointés / absents pointés
+  const stArr=id=>((records[dk]&&records[dk][id])||{}).arrStatus||"";
+  const nPresent=all.filter(e=>{const s=stArr(e.id); return s==="present"||s==="retard";}).length;
+  const nAbsent=all.filter(e=>stArr(e.id)==="absent").length;
+  const stats=`<div class="day-stats">
+    <div class="ds-item"><b>${working.length}</b><span>prévu${working.length>1?"s":""}</span></div>
+    <div class="ds-item ds-gray"><b>${repos.length}</b><span>repos</span></div>
+    <div class="ds-item ds-green"><b>${nPresent}</b><span>présent${nPresent>1?"s":""}</span></div>
+    <div class="ds-item ds-red"><b>${nAbsent}</b><span>absent${nAbsent>1?"s":""}</span></div>
+  </div>`;
+  let html=stats+banner;
   const byArr=(a,b)=>{ const ta=toMin(planned(dk,a.id).arr), tb=toMin(planned(dk,b.id).arr); return (ta==null?9999:ta)-(tb==null?9999:tb); };
   const notDone=[], done=[];
   working.forEach(e=>{ (dayDone(records[dk]&&records[dk][e.id])?done:notDone).push(e); });
