@@ -83,6 +83,10 @@
 
   main{padding:8px 12px calc(28px + var(--safe-bottom));}
   .section-title{font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:16px 4px 8px;display:flex;align-items:center;gap:7px;}
+  .section-banner{font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin:18px 12px 10px;padding:10px 14px;border-radius:12px;display:flex;align-items:center;gap:8px;color:#fff;}
+  .section-banner.todo{background:#1d4ed8;}
+  .section-banner.rest{background:#64748b;}
+  .section-banner.done{background:#15803d;}
   .section-title.now{color:var(--green);}
   .pulse{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(22,163,74,.5);animation:pulse 1.6s infinite;}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5);}70%{box-shadow:0 0 0 7px rgba(22,163,74,0);}100%{box-shadow:0 0 0 0 rgba(22,163,74,0);}}
@@ -863,10 +867,10 @@ function renderHome(){
   const reposTodo=[], reposDone=[];
   repos.forEach(e=>{ (dayDone(records[dk]&&records[dk][e.id])?reposDone:reposTodo).push(e); });
   notDone.sort(byArr); done.sort(byArr);
-  if(notDone.length) html+=`<div class="section-title">À pointer · par ordre d'arrivée</div>`+notDone.map(e=>card(dk,e,false)).join("");
-  if(reposTodo.length) html+=`<div class="section-title">😴 Repos · à confirmer</div>`+reposTodo.map(e=>card(dk,e,false)).join("");
+  if(notDone.length) html+=`<div class="section-banner todo">👇 À pointer · par ordre d'arrivée</div>`+notDone.map(e=>card(dk,e,false)).join("");
+  if(reposTodo.length) html+=`<div class="section-banner rest">😴 Repos · à confirmer</div>`+reposTodo.map(e=>card(dk,e,false)).join("");
   const allDone=done.concat(reposDone);
-  if(allDone.length) html+=`<div class="section-title">✓ Journée terminée</div>`+allDone.map(e=>card(dk,e,false)).join("");
+  if(allDone.length) html+=`<div class="section-banner done">✓ Journée terminée</div>`+allDone.map(e=>card(dk,e,false)).join("");
   list.innerHTML=html;
 }
 
