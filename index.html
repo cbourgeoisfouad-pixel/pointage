@@ -150,7 +150,11 @@
   .preset .hint2{color:var(--muted);font-size:12px;}
   .tpl-day{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:12px;padding:10px 12px;margin:0 12px 8px;}
   .day-stats{display:flex;gap:8px;margin:12px;}
-  .day-stats .ds-item{flex:1;background:var(--card);border-radius:12px;padding:10px 6px;text-align:center;display:flex;flex-direction:column;gap:2px;}
+  .day-stats .ds-group{flex:1;background:var(--card);border-radius:14px;padding:8px 8px 10px;border:1.5px solid #e5e7eb;}
+  .day-stats .ds-group.ds-reel{border-color:#86efac;}
+  .day-stats .ds-title{font-size:11px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;text-align:center;margin-bottom:6px;}
+  .day-stats .ds-cells{display:flex;gap:6px;}
+  .day-stats .ds-item{flex:1;text-align:center;display:flex;flex-direction:column;gap:2px;}
   .day-stats .ds-item b{font-size:20px;line-height:1;}
   .day-stats .ds-item span{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;}
   .day-stats .ds-green b{color:#15803d;}
@@ -837,10 +841,20 @@ function renderHome(){
   const nPresent=all.filter(e=>{const s=stArr(e.id); return s==="present"||s==="retard";}).length;
   const nAbsent=all.filter(e=>stArr(e.id)==="absent").length;
   const stats=`<div class="day-stats">
-    <div class="ds-item"><b>${working.length}</b><span>prévu${working.length>1?"s":""}</span></div>
-    <div class="ds-item ds-gray"><b>${repos.length}</b><span>repos</span></div>
-    <div class="ds-item ds-green"><b>${nPresent}</b><span>présent${nPresent>1?"s":""}</span></div>
-    <div class="ds-item ds-red"><b>${nAbsent}</b><span>absent${nAbsent>1?"s":""}</span></div>
+    <div class="ds-group">
+      <div class="ds-title">📋 Théorie</div>
+      <div class="ds-cells">
+        <div class="ds-item"><b>${working.length}</b><span>prévu${working.length>1?"s":""}</span></div>
+        <div class="ds-item ds-gray"><b>${repos.length}</b><span>repos</span></div>
+      </div>
+    </div>
+    <div class="ds-group ds-reel">
+      <div class="ds-title">✅ Réel</div>
+      <div class="ds-cells">
+        <div class="ds-item ds-green"><b>${nPresent}</b><span>présent${nPresent>1?"s":""}</span></div>
+        <div class="ds-item ds-red"><b>${nAbsent}</b><span>absent${nAbsent>1?"s":""}</span></div>
+      </div>
+    </div>
   </div>`;
   let html=stats+banner;
   const byArr=(a,b)=>{ const ta=toMin(planned(dk,a.id).arr), tb=toMin(planned(dk,b.id).arr); return (ta==null?9999:ta)-(tb==null?9999:tb); };
