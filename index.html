@@ -511,6 +511,7 @@
         <div class="btn-stack">
           <button class="icon-btn" onclick="showHistory()" title="Historique">🗓</button>
           <button class="icon-btn" onclick="goPage(4)" title="Salariés">👤</button>
+          <button class="icon-btn" onclick="printWeekPlanningPDF()" title="PDF planning de la semaine">🖨️</button>
         </div>
       </div>
     </header>
@@ -1972,6 +1973,43 @@ function printWeekRecap(w){
     <tfoot><tr><td colspan="3">TOTAL</td><td style="text-align:right">${fmtH(gTot)}</td><td style="text-align:right">${fmtH(gSup)}</td><td></td></tr></tfoot></table>
     <div class="note">Le détail jour par jour de chaque salarié figure dans les pages suivantes.</div>
     ${pages}
+    </body></html>`);
+  win.document.close(); setTimeout(()=>{try{win.print();}catch(e){}},350);
+}
+
+/* ----- PDF planning de la semaine (présences prévues / repos / congés) ----- */
+function printWeekPlanningPDF(){
+  const ws=mondayOf(viewDate), last=new Date(ws); last.setDate(ws.getDate()+5);
+  const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  const days=[]; for(let i=0;i<6;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); days.push(d); }
+  const list=activesOn(key(ws)).slice().sort((a,b)=>String(a.matricule||"").localeCompare(String(b.matricule||""),"fr",{numeric:true}));
+  if(!list.length){ alert("Aucun salarié actif cette semaine."); return; }
+  const counts=days.map(()=>0);
+  const rows=list.map(e=>{
+    const cells=days.map((d,i)=>{
+      const dk=key(d), p=planned(dk,e.id), en=(records[dk]&&records[dk][e.id])||{};
+      if(en.arrStatus==="absent"&&en.absMotif==="conge") return `<td class="cg">Congé</td>`;
+      if(!p.work) return `<td class="rp">Repos</td>`;
+      counts[i]++;
+      return `<td>${esc(p.arr||"—")} – ${esc(p.dep||"—")}</td>`;
+    }).join("");
+    return `<tr><td>${esc(e.matricule||"")}</td><td class="nm">${esc(empName(e))}</td>${cells}</tr>`;
+  }).join("");
+  const heads=days.map(d=>`<th>${JOURS_C[d.getDay()]} ${d.getDate()}</th>`).join("");
+  const totals=counts.map(c=>`<td style="text-align:center">${c}</td>`).join("");
+  const win=window.open("","_blank"); if(!win){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Planning semaine — ${esc(period)}</title>
+    <style>body{font-family:Arial,sans-serif;color:#111;padding:26px;}h1{font-size:19px;margin:0 0 2px;}.sub{color:#555;margin-bottom:14px;}
+    table{width:100%;border-collapse:collapse;font-size:12px;}th,td{border:1px solid #bbb;padding:6px 7px;text-align:center;}th{background:#eee;}
+    td.nm{text-align:left;font-weight:bold;white-space:nowrap;}
+    td.rp{color:#999;background:#f7f7f7;}td.cg{color:#b91c1c;background:#fdf2f2;font-weight:bold;}
+    tfoot td{font-weight:bold;background:#f6f6f6;}
+    @media print{@page{size:landscape;}}</style></head>
+    <body><h1>Planning de la semaine — US CAR WASH</h1><div class="sub">Semaine ${esc(period)} · présences prévues, repos et congés</div>
+    <table><thead><tr><th>Matricule</th><th>Salarié</th>${heads}</tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="2">Présents prévus</td>${totals}</tr></tfoot></table>
     </body></html>`);
   win.document.close(); setTimeout(()=>{try{win.print();}catch(e){}},350);
 }
