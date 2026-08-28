@@ -164,6 +164,11 @@
   .day-stats .ds-green b{color:#15803d;}
   .day-stats .ds-red b{color:#b91c1c;}
   .day-stats .ds-gray b{color:#6b7280;}
+  .cong-item{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border-radius:12px;padding:12px 14px;margin-bottom:8px;border:1px solid #e5e7eb;}
+  .cong-info{display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .cong-dates{font-size:12.5px;color:#6b7280;}
+  .cong-actions{display:flex;align-items:center;gap:8px;flex:none;}
+  .cong-del{background:none;border:none;font-size:18px;cursor:pointer;padding:4px;}
   .tpl-total{background:var(--card);border-radius:14px;padding:12px 14px;margin:12px;border:2px solid #1f2937;}
   .tpl-total .tt-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:15px;}
   .tpl-total .tt-row b{font-size:16px;}
@@ -609,6 +614,25 @@
   </div>
 </section>
 
+<section class="page" id="page6">
+  <div class="week-head"><div class="week-label">Congés</div></div>
+  <div class="rap-bulle">
+    <div class="rap-bulle-title">🏖️ Déclarer un congé</div>
+    <label class="cust-field">Salarié<select id="congEmp"></select></label>
+    <div class="cust-dates">
+      <label class="cust-field">Du<input type="date" id="congStart"></label>
+      <label class="cust-field">Au (inclus)<input type="date" id="congEnd"></label>
+    </div>
+    <button class="btn-primary" style="margin-top:12px;width:100%;" onclick="addConge()">＋ Enregistrer le congé</button>
+    <div class="form-error" id="congErr"></div>
+    <p class="hint" style="margin:10px 2px 0;">Le salarié sera automatiquement marqué « Absent (Congé) » sur tous ses jours de travail prévus jusqu'à la date de fin. Les jours déjà pointés ou validés ne sont pas touchés.</p>
+  </div>
+  <div class="rap-bulle">
+    <div class="rap-bulle-title">📅 Congés enregistrés</div>
+    <div id="congList"></div>
+  </div>
+</section>
+
 <!-- ===================== MENU ÉDITION HORAIRE (modal) ===================== -->
 <div id="modalOverlay" class="modal-overlay" onclick="closeSchedule()"></div>
 <div id="scheduleModal" class="modal">
@@ -697,7 +721,7 @@
 /* =========================================================
    NAVIGATION GLOBALE (5 pages)
    ========================================================= */
-const PAGES=["Pointage quotidien","Plannings semaine","Semaine de référence","Salariés","Rapport"];
+const PAGES=["Pointage quotidien","Plannings semaine","Semaine de référence","Salariés","Rapport","Congés"];
 let currentPage=1;
 
 (function buildNav(){
@@ -709,7 +733,7 @@ let currentPage=1;
 
 function goPage(n){
   currentPage=n;
-  for(let i=1;i<=5;i++) document.getElementById("page"+i).classList.toggle("active",i===n);
+  for(let i=1;i<=6;i++) document.getElementById("page"+i).classList.toggle("active",i===n);
   document.querySelectorAll(".tab,.drawer-link").forEach(el=>el.classList.toggle("active",+el.dataset.page===n));
   document.getElementById("brand").textContent=PAGES[n-1];
   closeDrawer();
@@ -718,6 +742,7 @@ function goPage(n){
   if(n===3) renderBase();
   if(n===4) renderEmployees();
   if(n===5) renderRapport();
+  if(n===6) renderConges();
   window.scrollTo(0,0);
 }
 function openDrawer(){ document.getElementById("drawer").classList.add("open"); document.getElementById("overlay").classList.add("show"); }
@@ -738,6 +763,7 @@ const POSTE_LABEL={laveur:"Laveur auto",technicien:"Technicien pare-brise"};
 const DEP_COLOR={parti:"green",avance:"blue",heuresup:"amber"};
 
 let employees=[], templates={}, overrides={}, records={}, validated={}, weekSigs={}, responsables=[];
+let conges=[], congesTableOk=true;
 let viewDate=startOfToday();
 let currentEmp=null;
 
@@ -748,15 +774,17 @@ const sb=window.supabase.createClient(SB_URL, SB_KEY);
 
 /* ---- Chargement de toutes les données depuis le cloud ---- */
 async function loadAll(){
-  employees=[]; templates={}; overrides={}; records={}; validated={}; weekSigs={}; responsables=[];
-  const [emp,ovr,rec,val,wsig,resp]=await Promise.all([
+  employees=[]; templates={}; overrides={}; records={}; validated={}; weekSigs={}; responsables=[]; conges=[]; congesTableOk=true;
+  const [emp,ovr,rec,val,wsig,resp,cng]=await Promise.all([
     sb.from("employees").select("*"),
     sb.from("overrides").select("*"),
     sb.from("records").select("*"),
     sb.from("validations").select("*"),
     sb.from("week_signatures").select("*"),
-    sb.from("responsables").select("*")
+    sb.from("responsables").select("*"),
+    sb.from("conges").select("*")
   ]);
+  if(cng.error){ congesTableOk=false; } else { conges=(cng.data||[]).map(r=>({id:r.id,empId:r.emp_id,start:r.start_date,end:r.end_date})); }
   responsables=(resp.data||[]).slice().sort((a,b)=>(a.created_at||"").localeCompare(b.created_at||""));
   (val.data||[]).forEach(r=>{ validated[r.date]={signer:r.signer||"",signature:r.signature||"",snapshot:r.snapshot||null,validated_at:r.validated_at}; });
   (wsig.data||[]).forEach(r=>{ (weekSigs[r.week]=weekSigs[r.week]||{})[r.emp_id]={signature:r.signature||"",signed_at:r.signed_at,responsable:r.responsable||"",respSignature:r.resp_signature||""}; });
@@ -775,6 +803,99 @@ function pushEmp(id){ const e=employees.find(x=>x.id===id); if(!e) return; sb.fr
 function pushRec(dk,id){ const en=recEntry(dk,id); sb.from("records").upsert({date:dk,emp_id:id,arr_status:en.arrStatus||null,arr_time:en.arrTime||null,retard_min:en.retardMin||0,abs_motif:en.absMotif||null,dep_status:en.depStatus||null,dep_time:en.depTime||null,hs_min:en.hsMin||0,nb_jobs:en.nbJobs||null}).then(({error})=>syncErr("pushRec",error)); }
 function pushOvr(dk,id){ const o=overrides[dk][id]; sb.from("overrides").upsert({date:dk,emp_id:id,work:!!o.work,arr:o.arr||null,dep:o.dep||null}).then(({error})=>syncErr("pushOvr",error)); }
 function delOvrRow(dk,id){ sb.from("overrides").delete().match({date:dk,emp_id:id}).then(({error})=>syncErr("delOvr",error)); }
+function delRecRow(dk,id){ sb.from("records").delete().match({date:dk,emp_id:id}).then(({error})=>syncErr("delRec",error)); }
+
+/* =========================================================
+   CONGÉS — déclaration + marquage automatique "Absent (Congé)"
+   ========================================================= */
+function pushConge(c){ sb.from("conges").upsert({id:c.id,emp_id:c.empId,start_date:c.start,end_date:c.end}).then(({error})=>syncErr("pushConge",error)); }
+function delCongeRow(id){ sb.from("conges").delete().match({id}).then(({error})=>syncErr("delConge",error)); }
+function congeDays(c){ // jours de travail prévus dans la période (hors dimanche)
+  const out=[]; const start=parseKey(c.start), end=parseKey(c.end); let n=0;
+  for(let d=new Date(start); d<=end && n<400; d.setDate(d.getDate()+1), n++){
+    if(d.getDay()===0) continue;
+    const dk=key(d);
+    if(planned(dk,c.empId).work) out.push(dk);
+  }
+  return out;
+}
+function applyConge(c){ // marque Absent (Congé) sans écraser un vrai pointage ni une journée validée
+  let n=0;
+  congeDays(c).forEach(dk=>{
+    if(dayLocked(dk)) return;
+    const en=records[dk]&&records[dk][c.empId];
+    if(en && en.arrStatus && !(en.arrStatus==="absent"&&en.absMotif==="conge")) return; // déjà pointé autrement
+    if(!records[dk]) records[dk]={};
+    records[dk][c.empId]={arrStatus:"absent",absMotif:"conge",arrTime:"",retardMin:0,depStatus:"",depTime:"",hsMin:0,nbJobs:""};
+    pushRec(dk,c.empId); n++;
+  });
+  return n;
+}
+function unapplyConge(c){ // retire uniquement les jours encore marqués Absent (Congé)
+  congeDays(c).forEach(dk=>{
+    if(dayLocked(dk)) return;
+    const en=records[dk]&&records[dk][c.empId];
+    if(en && en.arrStatus==="absent" && en.absMotif==="conge"){ delete records[dk][c.empId]; delRecRow(dk,c.empId); }
+  });
+}
+function addConge(){
+  const err=document.getElementById("congErr"); err.textContent="";
+  if(!congesTableOk){ err.textContent="La table « conges » n'existe pas encore dans Supabase — colle le petit script SQL (voir ci-dessous)."; return; }
+  const empId=document.getElementById("congEmp").value, s=document.getElementById("congStart").value, en=document.getElementById("congEnd").value;
+  if(!empId){ err.textContent="Choisis un salarié."; return; }
+  if(!s||!en){ err.textContent="Choisis les deux dates."; return; }
+  if(s>en){ err.textContent="La date de début doit être avant la date de fin."; return; }
+  const c={id:uid(), empId, start:s, end:en};
+  conges.push(c); pushConge(c);
+  const n=applyConge(c);
+  renderConges();
+  const e=employees.find(x=>x.id===empId);
+  alert(`Congé enregistré pour ${e?empName(e):"?"} : ${n} jour(s) marqué(s) « Absent (Congé) » dans les plannings.`);
+}
+function removeConge(id){
+  const c=conges.find(x=>x.id===id); if(!c) return;
+  const e=employees.find(x=>x.id===c.empId);
+  if(!confirm(`Supprimer ce congé de ${e?empName(e):"?"} ?\nLes jours encore marqués « Absent (Congé) » seront remis à « non pointé ».`)) return;
+  unapplyConge(c);
+  conges=conges.filter(x=>x.id!==id); delCongeRow(id);
+  renderConges();
+}
+function frDateKey(dk){ const d=parseKey(dk); return d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short",year:"numeric"}); }
+function renderConges(){
+  const sel=document.getElementById("congEmp");
+  sel.innerHTML=actives().slice().sort((a,b)=>String(a.matricule||"").localeCompare(String(b.matricule||""),"fr",{numeric:true}))
+    .map(e=>`<option value="${e.id}">${escapeHtml((e.matricule?e.matricule+" — ":"")+empName(e))}</option>`).join("");
+  const list=document.getElementById("congList");
+  if(!congesTableOk){
+    list.innerHTML=`<div class="empty"><p>⚠️ La table « conges » n'existe pas encore.<br>Dans Supabase → SQL Editor, colle et exécute :</p>
+      <pre style="text-align:left;background:#f3f4f6;padding:10px;border-radius:8px;font-size:11px;overflow-x:auto;">create table if not exists public.conges (
+  id text primary key,
+  emp_id text not null,
+  start_date date not null,
+  end_date date not null,
+  created_at timestamptz default now()
+);
+alter table public.conges enable row level security;
+create policy "public_all" on public.conges
+  for all using (true) with check (true);
+grant all on public.conges to anon, authenticated;</pre>
+      <p>Puis recharge l'app.</p></div>`;
+    return;
+  }
+  if(!conges.length){ list.innerHTML=`<div class="empty"><p>Aucun congé enregistré pour l'instant.</p></div>`; return; }
+  const today=key(startOfToday());
+  const sorted=conges.slice().sort((a,b)=>b.start.localeCompare(a.start));
+  list.innerHTML=sorted.map(c=>{
+    const e=employees.find(x=>x.id===c.empId);
+    const status=c.end<today?`<span class="badge none">terminé</span>`:(c.start<=today?`<span class="badge green">en cours</span>`:`<span class="badge amber">à venir</span>`);
+    const nd=congeDays(c).length;
+    return `<div class="cong-item">
+      <div class="cong-info"><b>${escapeHtml(e?empName(e):"Salarié supprimé")}</b>
+        <span class="cong-dates">du ${frDateKey(c.start)} au ${frDateKey(c.end)} · ${nd} jour${nd>1?"s":""} travaillé${nd>1?"s":""}</span></div>
+      <div class="cong-actions">${status}<button class="cong-del" onclick="removeConge('${c.id}')" title="Supprimer">🗑</button></div>
+    </div>`;
+  }).join("");
+}
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 function defaultTemplate(){ const t={}; for(let d=0;d<7;d++) t[d]={work:false,arr:"09:00",dep:"18:00"}; [1,2,3,4,5].forEach(d=>t[d].work=true); return t; }
 function ensureTemplate(id){ if(!templates[id]) templates[id]=defaultTemplate(); for(let d=0;d<7;d++) if(!templates[id][d]) templates[id][d]={work:false,arr:"09:00",dep:"18:00"}; }
