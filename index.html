@@ -451,6 +451,7 @@
   .btn-mail{background:#0891b2;color:#fff;}
   .ws-mail{flex:none;background:#e0f2fe;color:#0891b2;border:none;border-radius:9px;width:42px;height:38px;font-size:16px;cursor:pointer;}
   .ws-mail.off{opacity:.4;}
+  .ws-wa{background:#dcfce7;}
   .es-tablewrap{overflow-x:auto;margin-top:4px;-webkit-overflow-scrolling:touch;}
   .es-table .es-num{text-align:right;white-space:nowrap;font-weight:700;}
   .es-split{margin-top:14px;border-top:2px solid var(--ink);padding-top:8px;}
@@ -1737,6 +1738,7 @@ function renderWeekSign(){
     const r=weekRepRows(e); const signed=!!(weekSigs[wk] && weekSigs[wk][e.id]);
     return `<div class="ws-row">
       <div class="ws-main" onclick="openEmpSign('${e.id}')"><div class="ws-name">${escapeHtml(empName(e))}</div><div class="ws-tot">${fmtH(r.total)}</div></div>
+      <button class="ws-mail ws-wa ${signed?"":"off"}" onclick="waEmpGated('${e.id}')" title="${signed?"Envoyer sur WhatsApp":"Disponible une fois signé"}">💬</button>
       <button class="ws-mail ${signed?"":"off"}" onclick="emailEmpGated('${e.id}')" title="${signed?"Envoyer par mail":"Disponible une fois signé"}">✉️</button>
       <button class="ws-status ${signed?"ok":""}" onclick="openEmpSign('${e.id}')">${signed?"✓ Signé":"À signer"}</button>
     </div>`;
@@ -1853,6 +1855,32 @@ function emailEmpGated(id){
   const wk=weekKeyOf();
   if(!(weekSigs[wk] && weekSigs[wk][id])){ alert("Le relevé doit d'abord être signé par le salarié avant l'envoi par mail."); return; }
   emailEmp(id);
+}
+function waEmpGated(id){
+  const wk=weekKeyOf();
+  if(!(weekSigs[wk] && weekSigs[wk][id])){ alert("Le relevé doit d'abord être signé par le salarié avant l'envoi WhatsApp."); return; }
+  waEmp(id);
+}
+function waPhone(tel){
+  let n=String(tel||"").replace(/[^\d+]/g,"");       // garder chiffres et +
+  if(n.startsWith("+")) n=n.slice(1);
+  else if(n.startsWith("00")) n=n.slice(2);
+  else if(n.startsWith("0")) n="33"+n.slice(1);      // numéro français 06… → 336…
+  return n;
+}
+function waEmp(id){
+  const e=employees.find(x=>x.id===id); if(!e) return;
+  if(!e.tel){ alert("Aucun numéro de téléphone renseigné dans la fiche de ce salarié. Ajoute-le dans la page « Salariés »."); return; }
+  const num=waPhone(e.tel);
+  if(num.length<10){ alert("Le numéro de téléphone de la fiche semble incomplet : "+e.tel); return; }
+  const r=weekRepRows(e), ws=r.ws, last=new Date(ws); last.setDate(ws.getDate()+5);
+  const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  const sp=weekSplit(e,r.total);
+  const lines=r.rows.map(x=>`${x.day} : ${x.presence}${x.workedMin>0?" — "+x.worked:""}`).join("\n");
+  let body=`Bonjour ${e.prenom||""},\n\nVoici ton relevé de présence pour la semaine ${period} :\n\n${lines}\n\n`;
+  if(sp.hasContract){ body+=`Heures contrat (${e.contrat} h) : ${fmtH(sp.normal)}\nHeures supplémentaires : ${fmtH(sp.sup)}\n`; }
+  body+=`Total réalisé : ${fmtH(r.total)}\n\nUS CAR WASH`;
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(body)}`,"_blank");
 }
 function emailEmp(id){
   const e=employees.find(x=>x.id===id); if(!e) return;
