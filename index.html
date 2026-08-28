@@ -452,6 +452,7 @@
   .ws-mail{flex:none;background:#e0f2fe;color:#0891b2;border:none;border-radius:9px;width:42px;height:38px;font-size:16px;cursor:pointer;}
   .ws-mail.off{opacity:.4;}
   .ws-wa{background:#dcfce7;}
+  .ws-wa.sent{background:#16a34a;color:#fff;font-weight:800;}
   .es-tablewrap{overflow-x:auto;margin-top:4px;-webkit-overflow-scrolling:touch;}
   .es-table .es-num{text-align:right;white-space:nowrap;font-weight:700;}
   .es-split{margin-top:14px;border-top:2px solid var(--ink);padding-top:8px;}
@@ -1738,8 +1739,7 @@ function renderWeekSign(){
     const r=weekRepRows(e); const signed=!!(weekSigs[wk] && weekSigs[wk][e.id]);
     return `<div class="ws-row">
       <div class="ws-main" onclick="openEmpSign('${e.id}')"><div class="ws-name">${escapeHtml(empName(e))}</div><div class="ws-tot">${fmtH(r.total)}</div></div>
-      <button class="ws-mail ws-wa ${signed?"":"off"}" onclick="waEmpGated('${e.id}')" title="${signed?"Envoyer sur WhatsApp":"Disponible une fois signé"}">💬</button>
-      <button class="ws-mail ${signed?"":"off"}" onclick="emailEmpGated('${e.id}')" title="${signed?"Envoyer par mail":"Disponible une fois signé"}">✉️</button>
+      <button class="ws-mail ws-wa ${signed?"":"off"} ${waSent(wk,e.id)?"sent":""}" onclick="waEmpGated('${e.id}')" title="${waSent(wk,e.id)?"Relevé envoyé sur WhatsApp":(signed?"Envoyer sur WhatsApp":"Disponible une fois signé")}">${waSent(wk,e.id)?"✓":"💬"}</button>
       <button class="ws-status ${signed?"ok":""}" onclick="openEmpSign('${e.id}')">${signed?"✓ Signé":"À signer"}</button>
     </div>`;
   }).join("");
@@ -1861,6 +1861,10 @@ function waEmpGated(id){
   if(!(weekSigs[wk] && weekSigs[wk][id])){ alert("Le relevé doit d'abord être signé par le salarié avant l'envoi WhatsApp."); return; }
   waEmp(id);
 }
+/* Mémorisation locale (sur cet appareil) des relevés déjà envoyés sur WhatsApp */
+function waSentMap(){ try{ return JSON.parse(localStorage.getItem("pointage_wa_sent")||"{}"); }catch(e){ return {}; } }
+function waSent(wk,id){ const m=waSentMap(); return !!(m[wk]&&m[wk][id]); }
+function waMarkSent(wk,id){ const m=waSentMap(); (m[wk]=m[wk]||{})[id]=true; localStorage.setItem("pointage_wa_sent",JSON.stringify(m)); }
 function waPhone(tel){
   let n=String(tel||"").replace(/[^\d+]/g,"");       // garder chiffres et +
   if(n.startsWith("+")) n=n.slice(1);
@@ -1881,6 +1885,7 @@ function waEmp(id){
   if(sp.hasContract){ body+=`Heures contrat (${e.contrat} h) : ${fmtH(sp.normal)}\nHeures supplémentaires : ${fmtH(sp.sup)}\n`; }
   body+=`Total réalisé : ${fmtH(r.total)}\n\nUS CAR WASH`;
   window.open(`https://wa.me/${num}?text=${encodeURIComponent(body)}`,"_blank");
+  waMarkSent(weekKeyOf(),id); renderWeekSign();
 }
 function emailEmp(id){
   const e=employees.find(x=>x.id===id); if(!e) return;
