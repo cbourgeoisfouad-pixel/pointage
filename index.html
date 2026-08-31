@@ -1663,10 +1663,11 @@ function weekRepRows(e,ws){
   ws=ws||mondayOf(repWeekRef); const pause=parseInt(empPause(e),10)||0; let total=0; const out=[];
   for(let i=0;i<7;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); if(d.getDay()===0) continue; /* pas de dimanche : entreprise fermée */ const dk=key(d);
     const p=planned(dk,e.id), en=(records[dk]&&records[dk][e.id])||{}; let detail, txt, presence, mins=0; const hs=en.hsMin||0;
-    if(!p.work){ detail=`<span class="wr-repos">Repos</span>`; txt="Repos"; presence="Repos"; }
-    else if(en.arrStatus==="absent"){ const m="Absent"+(en.absMotif?" ("+absLabel(en.absMotif)+")":""); detail=`<span class="wr-abs">${m}</span>`; txt=m; presence=m; }
+    // Le pointage RÉEL prime sur le planning : un salarié pointé présent un jour de repos prévu compte quand même.
+    if(en.arrStatus==="absent"){ const m="Absent"+(en.absMotif?" ("+absLabel(en.absMotif)+")":""); detail=`<span class="wr-abs">${m}</span>`; txt=m; presence=m; }
     else if(en.arrStatus && en.arrTime && en.depTime){ mins=Math.max(0,(toMin(en.depTime)-toMin(en.arrTime))-pause); total+=mins; detail=`${en.arrTime} → ${en.depTime} <b>${fmtH(mins)}</b>`; txt=`${en.arrTime} → ${en.depTime} (${fmtH(mins)})`; presence=`${en.arrTime} → ${en.depTime}`; }
     else if(en.arrStatus){ detail=`<span class="wr-partial">Arrivé ${en.arrTime||p.arr||""}, sortie non pointée</span>`; txt="Sortie non pointée"; presence="Sortie non pointée"; }
+    else if(!p.work){ detail=`<span class="wr-repos">Repos</span>`; txt="Repos"; presence="Repos"; }
     else { detail=`<span class="wr-none">Non pointé</span>`; txt="Non pointé"; presence="Non pointé"; }
     out.push({day:JOURS_C[d.getDay()]+" "+d.getDate(), detail, txt, presence, workedMin:mins, hsMin:hs, worked: mins>0?fmtH(mins):"—", sup: hs>0?fmtH(hs):"—"});
   }
@@ -1686,8 +1687,9 @@ function rangeStats(e,startKey,endKey){
   const weekTotals={}; let totalWorked=0, n=0;
   for(let d=new Date(start); d<=end && n<800; d.setDate(d.getDate()+1), n++){
     if(d.getDay()===0) continue; // jamais le dimanche
-    const dk=key(d), p=planned(dk,e.id), rec=(records[dk]&&records[dk][e.id])||{};
-    if(p.work && rec.arrStatus && rec.arrStatus!=="absent" && rec.arrTime && rec.depTime){
+    const dk=key(d), rec=(records[dk]&&records[dk][e.id])||{};
+    // Le pointage réel prime sur le planning (jour de repos travaillé = compté)
+    if(rec.arrStatus && rec.arrStatus!=="absent" && rec.arrTime && rec.depTime){
       const mins=Math.max(0,(toMin(rec.depTime)-toMin(rec.arrTime))-pause);
       totalWorked+=mins; const wk=key(mondayOf(d)); weekTotals[wk]=(weekTotals[wk]||0)+mins;
     }
