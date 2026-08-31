@@ -358,7 +358,7 @@
   .val-field{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:12px;}
   .val-field select{border:1.5px solid var(--line);border-radius:10px;padding:12px;font-size:16px;font-weight:600;color:var(--ink);background:#fff;}
   .val-sig-lbl{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:6px;}
-  .sig-canvas{width:100%;max-width:340px;height:120px;border:1.5px dashed var(--line);border-radius:12px;background:#fafafa;touch-action:none;display:block;}
+  .sig-canvas{width:100%;max-width:100%;height:210px;border:1.5px dashed var(--line);border-radius:12px;background:#fafafa;touch-action:none;display:block;}
   .sig-clear{margin-top:8px;background:#f3f4f6;color:var(--muted);border:none;border-radius:9px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;}
 
   /* page Rapport */
@@ -454,6 +454,17 @@
   .ws-wa{background:#dcfce7;}
   .ws-wa.sent{background:#16a34a;color:#fff;font-weight:800;}
   .es-tablewrap{overflow-x:auto;margin-top:4px;-webkit-overflow-scrolling:touch;}
+  .es-editrow{cursor:pointer;}
+  .es-editrow:active{background:#eff6ff;}
+  .es-pen{color:#1d4ed8;font-size:12px;}
+  .es-dayedit{margin-top:12px;padding:12px;border:2px solid #1d4ed8;border-radius:12px;background:#eff6ff;}
+  .es-de-title{font-weight:800;margin-bottom:8px;}
+  .es-de-row{display:flex;gap:14px;flex-wrap:wrap;}
+  .es-de-row label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;}
+  .es-de-row input{font-size:16px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;}
+  .es-de-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  .es-de-clear{color:#b91c1c;}
+  .es-wa-btn{background:#16a34a;}
   .es-table .es-num{text-align:right;white-space:nowrap;font-weight:700;}
   .es-split{margin-top:14px;border-top:2px solid var(--ink);padding-top:8px;}
   .es-split .ln{display:flex;justify-content:space-between;padding:4px 0;font-size:14px;}
@@ -1669,7 +1680,7 @@ function weekRepRows(e,ws){
     else if(en.arrStatus){ detail=`<span class="wr-partial">Arrivé ${en.arrTime||p.arr||""}, sortie non pointée</span>`; txt="Sortie non pointée"; presence="Sortie non pointée"; }
     else if(!p.work){ detail=`<span class="wr-repos">Repos</span>`; txt="Repos"; presence="Repos"; }
     else { detail=`<span class="wr-none">Non pointé</span>`; txt="Non pointé"; presence="Non pointé"; }
-    out.push({day:JOURS_C[d.getDay()]+" "+d.getDate(), detail, txt, presence, workedMin:mins, hsMin:hs, worked: mins>0?fmtH(mins):"—", sup: hs>0?fmtH(hs):"—"});
+    out.push({dk, day:JOURS_C[d.getDay()]+" "+d.getDate(), detail, txt, presence, workedMin:mins, hsMin:hs, worked: mins>0?fmtH(mins):"—", sup: hs>0?fmtH(hs):"—"});
   }
   return {ws, rows:out, total};
 }
@@ -1746,10 +1757,10 @@ function renderWeekSign(){
     </div>`;
   }).join("");
 }
-function empSignDocHTML(e){
+function empSignDocHTML(e,editable){
   const r=weekRepRows(e), ws=r.ws, last=new Date(ws); last.setDate(ws.getDate()+5);
   const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
-  const rows=r.rows.map(x=>`<tr><td>${x.day}</td><td>${escapeHtml(x.presence)}</td><td class="es-num">${x.worked}</td></tr>`).join("");
+  const rows=r.rows.map(x=>`<tr${editable?` class="es-editrow" onclick="editEmpSignDay('${x.dk}')"`:""}><td>${x.day}</td><td>${escapeHtml(x.presence)}${editable?' <span class="es-pen">✎</span>':""}</td><td class="es-num">${x.worked}</td></tr>`).join("");
   const sp=weekSplit(e,r.total);
   const split= sp.hasContract
     ? `<div class="es-split">
@@ -1762,11 +1773,49 @@ function empSignDocHTML(e){
     <div class="es-doc-id"><b>${escapeHtml(empName(e))}</b>${e.matricule?` — matricule ${escapeHtml(e.matricule)}`:""}</div>
     <div class="es-doc-period">Semaine ${period}</div>
     <div class="es-tablewrap"><table class="es-table"><thead><tr><th>Jour</th><th>Présence pointée</th><th>Travaillé</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${editable?'<div class="es-hint2">✎ Touche un jour pour corriger les heures avant signature.</div>':""}
     ${split}
     <p class="es-cert">Je soussigné(e) <b>${escapeHtml(empName(e))}</b> certifie exact le relevé de mes heures de présence pour la semaine indiquée ci-dessus.</p>
   </div>`;
 }
 let empSignId=null, empSigPad=null, respSigPad=null;
+/* Correction des heures directement depuis le relevé (avant signature) */
+function editEmpSignDay(dk){
+  const e=employees.find(x=>x.id===empSignId); if(!e) return;
+  const wk=weekKeyOf(); if(weekSigs[wk] && weekSigs[wk][empSignId]) return; // signé = verrouillé
+  const p=planned(dk,e.id), en=(records[dk]&&records[dk][e.id])||{};
+  const d=parseKey(dk);
+  const old=document.getElementById("esDayEditor"); if(old) old.remove();
+  const div=document.createElement("div"); div.id="esDayEditor"; div.className="es-dayedit";
+  div.innerHTML=`
+    <div class="es-de-title">✎ ${JOURS_FULL[d.getDay()]} ${d.getDate()} — ${escapeHtml(empName(e))}</div>
+    <div class="es-de-row"><label>Arrivée <input type="time" id="esDeArr" value="${en.arrTime||p.arr||"09:00"}"></label>
+    <label>Sortie <input type="time" id="esDeDep" value="${en.depTime||p.dep||"18:00"}"></label></div>
+    <div class="es-de-actions">
+      <button class="ov-save" onclick="saveEmpSignDay('${dk}')">Enregistrer</button>
+      <button class="btn-export" onclick="document.getElementById('esDayEditor').remove()">Annuler</button>
+      ${en.arrStatus?`<button class="btn-export es-de-clear" onclick="clearEmpSignDay('${dk}')">Effacer le pointage</button>`:""}
+    </div>`;
+  const doc=document.querySelector("#empSignBody .es-doc"); if(doc) doc.appendChild(div);
+  div.scrollIntoView({behavior:"smooth",block:"center"});
+}
+function saveEmpSignDay(dk){
+  const a=document.getElementById("esDeArr").value, b=document.getElementById("esDeDep").value;
+  if(!a||!b){ alert("Renseigne l'arrivée ET la sortie."); return; }
+  if(toMin(b)<=toMin(a)){ alert("L'heure de sortie doit être après l'arrivée."); return; }
+  const en=recEntry(dk,empSignId);
+  en.arrStatus=en.arrStatus==="retard"?"retard":"present"; en.arrTime=a; en.absMotif="";
+  en.depStatus=en.depStatus||"parti"; en.depTime=b;
+  pushRec(dk,empSignId);
+  openEmpSign(empSignId);
+}
+function clearEmpSignDay(dk){
+  if(!confirm("Effacer le pointage de ce jour ? (il redeviendra « Non pointé »)")) return;
+  const en=recEntry(dk,empSignId);
+  en.arrStatus=""; en.arrTime=""; en.retardMin=0; en.absMotif=""; en.depStatus=""; en.depTime=""; en.hsMin=0;
+  pushRec(dk,empSignId);
+  openEmpSign(empSignId);
+}
 function openEmpSign(id){
   empSignId=id; const e=employees.find(x=>x.id===id); if(!e) return;
   const wk=weekKeyOf(), sig=weekSigs[wk] && weekSigs[wk][id];
@@ -1779,7 +1828,10 @@ function openEmpSign(id){
         <div><div class="val-sig-lbl">Signature du salarié</div>${sig.signature?`<img class="rap-sign-img" src="${sig.signature}">`:"—"}</div>
         <div><div class="val-sig-lbl">Le responsable${sig.responsable?` (${escapeHtml(sig.responsable)})`:""}</div>${sig.respSignature?`<img class="rap-sign-img" src="${sig.respSignature}">`:"—"}</div>
       </div>
-      <div class="es-actions"><button class="btn-export" onclick="printEmpSign()">🖨️ Imprimer / PDF</button></div>`;
+      <div class="es-actions">
+        <button class="ov-save es-wa-btn" onclick="waEmp('${e.id}')">💬 Envoyer sur WhatsApp</button>
+        <button class="btn-export" onclick="printEmpSign()">🖨️ Imprimer / PDF</button>
+      </div>`;
   } else {
     section=`
       <div class="es-sigzone">
@@ -1799,7 +1851,7 @@ function openEmpSign(id){
         </div>
       </div>`;
   }
-  document.getElementById("empSignBody").innerHTML=empSignDocHTML(e)+section;
+  document.getElementById("empSignBody").innerHTML=empSignDocHTML(e,!sig)+section;
   document.getElementById("empSign").classList.add("show"); window.scrollTo(0,0);
   if(sig){ empSigPad=null; respSigPad=null; }
   else {
@@ -1851,7 +1903,7 @@ async function saveEmpSign(){
   btn.disabled=false; btn.textContent="Valider les signatures";
   if(error){ errEl.textContent="Erreur : "+error.message; return; }
   if(!weekSigs[wk]) weekSigs[wk]={}; weekSigs[wk][empSignId]={signature,signed_at:at,responsable,respSignature};
-  closeEmpSign();
+  openEmpSign(empSignId); // rester sur la page : relevé signé + bouton WhatsApp
 }
 function emailEmpGated(id){
   const wk=weekKeyOf();
