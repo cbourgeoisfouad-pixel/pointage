@@ -2198,7 +2198,7 @@ function printWeekPlanningPDF(){
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
   const days=[]; for(let i=0;i<6;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); days.push(d); }
-  const POSTE_ORDER={finition:1,laveur:1,aspirateur:2,technicien:3};
+  const POSTE_ORDER={aspirateur:1,finition:2,laveur:2,technicien:3};
   const posteOf=e=>e.poste==="laveur"?"finition":(e.poste||"finition");
   const list=activesOn(key(ws)).slice().sort((a,b)=>{
     const pa=POSTE_ORDER[posteOf(a)]||9, pb=POSTE_ORDER[posteOf(b)]||9;
@@ -2207,19 +2207,23 @@ function printWeekPlanningPDF(){
   });
   if(!list.length){ alert("Aucun salarié actif cette semaine."); return; }
   const counts=days.map(()=>0);
-  let rows="", lastPoste=null;
+  let rows="", lastPoste=null, catLabel="", catCounts=days.map(()=>0);
+  const flushCat=()=>{ if(lastPoste===null) return;
+    rows+=`<tr class="sub"><td colspan="2">Sous-total ${esc(catLabel)}</td>${catCounts.map(c=>`<td style="text-align:center">${c}</td>`).join("")}</tr>`; };
   list.forEach(e=>{
     const po=posteOf(e);
-    if(po!==lastPoste){ rows+=`<tr class="grp"><td colspan="${2+days.length}">${esc(POSTE_LABEL[po]||po)}</td></tr>`; lastPoste=po; }
+    if(po!==lastPoste){ flushCat(); catCounts=days.map(()=>0); catLabel=POSTE_LABEL[po]||po;
+      rows+=`<tr class="grp"><td colspan="${2+days.length}">${esc(catLabel)}</td></tr>`; lastPoste=po; }
     const cells=days.map((d,i)=>{
       const dk=key(d), p=planned(dk,e.id), en=(records[dk]&&records[dk][e.id])||{};
       if(en.arrStatus==="absent"&&en.absMotif==="conge") return `<td class="cg">Congé</td>`;
       if(!p.work) return `<td class="rp">Repos</td>`;
-      counts[i]++;
+      counts[i]++; catCounts[i]++;
       return `<td>${esc(p.arr||"—")} – ${esc(p.dep||"—")}</td>`;
     }).join("");
     rows+=`<tr><td>${esc(e.matricule||"")}</td><td class="nm">${esc(empName(e))}</td>${cells}</tr>`;
   });
+  flushCat();
   const heads=days.map(d=>`<th>${JOURS_C[d.getDay()]} ${d.getDate()}</th>`).join("");
   const totals=counts.map(c=>`<td style="text-align:center">${c}</td>`).join("");
   const win=window.open("","_blank"); if(!win){ alert("Autorise les fenêtres pop-up pour imprimer."); return; }
@@ -2229,6 +2233,7 @@ function printWeekPlanningPDF(){
     td.nm{text-align:left;font-weight:bold;white-space:nowrap;}
     td.rp{color:#1d4ed8;background:#eff6ff;font-weight:bold;}td.cg{color:#b91c1c;background:#fdf2f2;font-weight:bold;}
     tr.grp td{background:#1f2937;color:#fff;font-weight:bold;text-align:left;text-transform:uppercase;letter-spacing:.5px;font-size:11px;padding:5px 8px;}
+    tr.sub td{background:#e5e7eb;font-weight:bold;font-size:11px;}
     tfoot td{font-weight:bold;background:#f6f6f6;}
     @media print{@page{size:landscape;}}</style></head>
     <body><h1>Planning de la semaine — US CAR WASH</h1><div class="sub">Semaine ${esc(period)} · présences prévues, repos et congés</div>
