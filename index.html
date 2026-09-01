@@ -9,6 +9,8 @@
 <meta name="theme-color" content="#1f2937">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
+<link rel="preconnect" href="https://iicxvdjhlwjwlbacjqgk.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <title>Pointage — US Car Wash</title>
 <style>
   :root{
@@ -62,7 +64,11 @@
 
   /* conteneur des pages */
   .page{display:none;}
-  .page.active{display:block;}
+  .page.active{display:block;animation:pageIn .18s ease-out;}
+  @keyframes pageIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  @media (prefers-reduced-motion: reduce){.page.active{animation:none;}}
+  button,.tab,.drawer-link,.todo-card,.ws-row,.emp-card{touch-action:manipulation;}
+  .fs.show{animation:pageIn .18s ease-out;}
 
   /* page vide (placeholder) */
   .page-empty{min-height:60vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 24px;color:var(--muted);}
@@ -776,6 +782,7 @@ function goPage(n){
   if(n===6) renderTodo();
   if(n===7) renderConges();
   window.scrollTo(0,0);
+  if(employees.length) saveCache(); // cache toujours frais pour le prochain démarrage
 }
 function openDrawer(){ document.getElementById("drawer").classList.add("open"); document.getElementById("overlay").classList.add("show"); }
 function closeDrawer(){ document.getElementById("drawer").classList.remove("open"); document.getElementById("overlay").classList.remove("show"); }
@@ -1657,12 +1664,31 @@ async function enterApp(){
   if(_entered) return; _entered=true;
   const lg=document.getElementById("login"); if(lg) lg.classList.remove("show");
   const lo=document.getElementById("logoutBtn"); if(lo) lo.style.display="none";
-  await loadAll();
-  maybeOfferImport();
   // Service worker (notifications push) + lien direct depuis une notification
   if("serviceWorker" in navigator){ try{ navigator.serviceWorker.register("sw.js"); }catch(e){} }
   const goto=new URLSearchParams(location.search).get("goto");
-  goPage(goto==="afaire"?6:(currentPage||1));
+  const target=goto==="afaire"?6:(currentPage||1);
+  // Démarrage instantané : affiche le cache local, puis synchronise en arrière-plan
+  if(applyCache()){
+    goPage(target);
+    loadAll().then(()=>{ saveCache(); maybeOfferImport(); goPage(currentPage||target); }).catch(e=>console.error("sync",e));
+  } else {
+    await loadAll(); saveCache();
+    maybeOfferImport();
+    goPage(target);
+  }
+}
+function saveCache(){
+  try{ localStorage.setItem("pointage_cache_v1", JSON.stringify({employees,templates,overrides,records,validated,weekSigs,responsables,conges})); }catch(e){}
+}
+function applyCache(){
+  try{
+    const c=JSON.parse(localStorage.getItem("pointage_cache_v1")||"null");
+    if(!c||!Array.isArray(c.employees)||!c.employees.length) return false;
+    employees=c.employees; templates=c.templates||{}; overrides=c.overrides||{}; records=c.records||{};
+    validated=c.validated||{}; weekSigs=c.weekSigs||{}; responsables=c.responsables||[]; conges=c.conges||[];
+    return true;
+  }catch(e){ return false; }
 }
 async function doLogin(){
   const email=document.getElementById("loginEmail").value.trim();
