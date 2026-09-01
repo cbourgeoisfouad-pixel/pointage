@@ -465,6 +465,15 @@
   .es-de-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
   .es-de-clear{color:#b91c1c;}
   .es-wa-btn{background:#16a34a;}
+  .todo-count{font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 12px 8px;}
+  .todo-card{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:14px;padding:14px;margin:0 12px 10px;cursor:pointer;border-left:5px solid #d1d5db;}
+  .todo-card.alert{border-left-color:#dc2626;}
+  .todo-card.warn{border-left-color:#f59e0b;}
+  .todo-card.info{border-left-color:#3b82f6;}
+  .todo-card:active{transform:scale(.985);}
+  .todo-ico{font-size:20px;flex:none;}
+  .todo-txt{flex:1;font-size:14px;line-height:1.4;}
+  .todo-arrow{color:var(--muted);font-size:22px;flex:none;}
   .es-table .es-num{text-align:right;white-space:nowrap;font-weight:700;}
   .es-split{margin-top:14px;border-top:2px solid var(--ink);padding-top:8px;}
   .es-split .ln{display:flex;justify-content:space-between;padding:4px 0;font-size:14px;}
@@ -629,6 +638,11 @@
 </section>
 
 <section class="page" id="page6">
+  <div class="week-head"><div class="week-label">À faire</div></div>
+  <div id="todoList"></div>
+</section>
+
+<section class="page" id="page7">
   <div class="week-head"><div class="week-label">Congés</div></div>
   <div class="rap-bulle">
     <div class="rap-bulle-title">🏖️ Déclarer un congé</div>
@@ -735,7 +749,7 @@
 /* =========================================================
    NAVIGATION GLOBALE (5 pages)
    ========================================================= */
-const PAGES=["Pointage quotidien","Plannings semaine","Semaine de référence","Salariés","Rapport","Congés"];
+const PAGES=["Pointage quotidien","Plannings semaine","Semaine de référence","Salariés","Rapport","À faire","Congés"];
 let currentPage=1;
 
 (function buildNav(){
@@ -747,7 +761,7 @@ let currentPage=1;
 
 function goPage(n){
   currentPage=n;
-  for(let i=1;i<=6;i++) document.getElementById("page"+i).classList.toggle("active",i===n);
+  for(let i=1;i<=7;i++) document.getElementById("page"+i).classList.toggle("active",i===n);
   document.querySelectorAll(".tab,.drawer-link").forEach(el=>el.classList.toggle("active",+el.dataset.page===n));
   document.getElementById("brand").textContent=PAGES[n-1];
   closeDrawer();
@@ -756,7 +770,8 @@ function goPage(n){
   if(n===3) renderBase();
   if(n===4) renderEmployees();
   if(n===5) renderRapport();
-  if(n===6) renderConges();
+  if(n===6) renderTodo();
+  if(n===7) renderConges();
   window.scrollTo(0,0);
 }
 function openDrawer(){ document.getElementById("drawer").classList.add("open"); document.getElementById("overlay").classList.add("show"); }
@@ -875,6 +890,49 @@ function removeConge(id){
   renderConges();
 }
 function frDateKey(dk){ const d=parseKey(dk); return d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short",year:"numeric"}); }
+/* ===================== PAGE « À FAIRE » (centre de tâches) ===================== */
+function gotoDay(dk){ viewDate=parseKey(dk); goPage(1); }
+function gotoWeekSign(wk,id){ repWeekRef=parseKey(wk); goPage(5); setTimeout(()=>openEmpSign(id),80); }
+function renderTodo(){
+  const cont=document.getElementById("todoList"); if(!cont) return;
+  const items=[];
+  const today=startOfToday(), curWeek=key(mondayOf(today));
+  // 1) Signatures de semaine manquantes (8 dernières semaines passées)
+  for(let w=1; w<=8; w++){
+    const ws=mondayOf(today); ws.setDate(ws.getDate()-7*w);
+    const wk=key(ws); if(wk>=curWeek) continue;
+    const last=new Date(ws); last.setDate(ws.getDate()+5);
+    const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long"});
+    weekParticipants(wk).forEach(e=>{
+      if(!(weekSigs[wk]&&weekSigs[wk][e.id]))
+        items.push({icon:"✍️",cls:"warn",txt:`<b>${escapeHtml(empName(e))}</b> n'a pas signé sa semaine <b>${period}</b>`,go:`gotoWeekSign('${wk}','${e.id}')`});
+    });
+  }
+  // 2) Journées passées incomplètes ou non signées (14 derniers jours)
+  for(let i=1;i<=14;i++){
+    const d=new Date(today); d.setDate(today.getDate()-i);
+    if(d.getDay()===0) continue;
+    const dk=key(d);
+    if(validated[dk]) continue;
+    const all=activesOn(dk).filter(e=>planned(dk,e.id).work || (records[dk]&&records[dk][e.id]&&records[dk][e.id].arrStatus));
+    if(!all.length) continue;
+    const missing=all.filter(e=>!dayDone(records[dk]&&records[dk][e.id]));
+    const label=d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+    if(missing.length)
+      items.push({icon:"⏱️",cls:"alert",txt:`<b>${label}</b> : ${missing.length} pointage${missing.length>1?"s":""} manquant${missing.length>1?"s":""} (${missing.slice(0,3).map(e=>escapeHtml(empName(e).split(" ")[0])).join(", ")}${missing.length>3?"…":""})`,go:`gotoDay('${dk}')`});
+    else
+      items.push({icon:"📝",cls:"warn",txt:`<b>${label}</b> : journée complète mais <b>non signée</b>`,go:`gotoDay('${dk}')`});
+  }
+  // 3) Fiches sans téléphone (envoi WhatsApp impossible)
+  actives().filter(e=>!e.tel).forEach(e=>{
+    items.push({icon:"📱",cls:"info",txt:`<b>${escapeHtml(empName(e))}</b> n'a pas de numéro de téléphone (envoi WhatsApp impossible)`,go:"goPage(4)"});
+  });
+  cont.innerHTML = items.length
+    ? `<div class="todo-count">${items.length} chose${items.length>1?"s":""} à faire</div>`+
+      items.map(it=>`<div class="todo-card ${it.cls}" onclick="${it.go}"><span class="todo-ico">${it.icon}</span><span class="todo-txt">${it.txt}</span><span class="todo-arrow">›</span></div>`).join("")
+    : `<div class="empty"><p>🎉 <b>Tout est à jour !</b><br>Aucune tâche en attente.</p></div>`;
+}
+
 function renderConges(){
   const sel=document.getElementById("congEmp");
   sel.innerHTML=actives().slice().sort((a,b)=>String(a.matricule||"").localeCompare(String(b.matricule||""),"fr",{numeric:true}))
