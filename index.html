@@ -722,7 +722,7 @@
     <label>N° de matricule <span class="req">obligatoire</span><input id="fMat" type="text" autocomplete="off"></label>
     <label>Prénom<input id="fPrenom" type="text" autocomplete="off"></label>
     <label>Nom<input id="fNom" type="text" autocomplete="off"></label>
-    <label>Poste<select id="fPoste"><option value="laveur">Laveur auto</option><option value="technicien">Technicien pare-brise</option></select></label>
+    <label>Poste<select id="fPoste"><option value="finition">Finition</option><option value="aspirateur">Aspirateur</option><option value="technicien">Technicien pare-brise</option></select></label>
     <label>Téléphone<input id="fTel" type="tel" inputmode="tel" autocomplete="off"></label>
     <label>Email<input id="fEmail" type="email" inputmode="email" autocomplete="off" placeholder="nom@exemple.fr"></label>
     <label>Heures par semaine (contrat)<input id="fContrat" type="text" inputmode="numeric" autocomplete="off" placeholder="ex. 35"></label>
@@ -798,7 +798,7 @@ const DEFAULT_EMP=[{prenom:"Mathieu",nom:"Garnier"},{prenom:"Karim",nom:"Benali"
 const ARR_LABEL={present:"Présent",retard:"En retard",absent:"Absent"};
 const DEP_LABEL={parti:"Parti",avance:"Parti en avance",heuresup:"Heure sup."};
 const ARR_COLOR={present:"green",retard:"amber",absent:"red"};
-const POSTE_LABEL={laveur:"Laveur auto",technicien:"Technicien pare-brise"};
+const POSTE_LABEL={finition:"Finition",aspirateur:"Aspirateur",technicien:"Technicien pare-brise",laveur:"Finition"/* ancien nom */};
 const DEP_COLOR={parti:"green",avance:"blue",heuresup:"amber"};
 
 let employees=[], templates={}, overrides={}, records={}, validated={}, weekSigs={}, responsables=[];
@@ -829,7 +829,7 @@ async function loadAll(){
   (wsig.data||[]).forEach(r=>{ (weekSigs[r.week]=weekSigs[r.week]||{})[r.emp_id]={signature:r.signature||"",signed_at:r.signed_at,responsable:r.responsable||"",respSignature:r.resp_signature||""}; });
   (emp.data||[]).forEach(r=>{
     templates[r.id]=r.template||defaultTemplate();
-    employees.push({id:r.id,prenom:r.prenom||"",nom:r.nom||"",tel:r.tel||"",email:r.email||"",matricule:r.matricule||"",poste:r.poste||"laveur",contrat:r.contrat||"",pause:(r.pause!=null?r.pause:"45"),archived:!!r.archived});
+    employees.push({id:r.id,prenom:r.prenom||"",nom:r.nom||"",tel:r.tel||"",email:r.email||"",matricule:r.matricule||"",poste:r.poste||"finition",contrat:r.contrat||"",pause:(r.pause!=null?r.pause:"45"),archived:!!r.archived});
     ensureTemplate(r.id);
   });
   (ovr.data||[]).forEach(r=>{ (overrides[r.date]=overrides[r.date]||{})[r.emp_id]={work:!!r.work,arr:r.arr||"",dep:r.dep||""}; });
@@ -1265,7 +1265,7 @@ function empPause(e){ return (e.pause!=null && e.pause!=="") ? e.pause : "45"; }
 function empMetaHTML(e){
   return `<div class="emp-meta">
     <span class="mat">🆔 ${e.matricule?escapeHtml(e.matricule):"<i>matricule —</i>"}</span>
-    <span class="poste">🧰 ${POSTE_LABEL[e.poste]||"Laveur auto"}</span>
+    <span class="poste">🧰 ${POSTE_LABEL[e.poste]||"Finition"}</span>
     ${e.contrat?`<span>📄 ${escapeHtml(String(e.contrat))} h/sem</span>`:""}
     <span>🍽 ${escapeHtml(String(empPause(e)))} min</span>
     ${e.tel?`<span>📞 ${escapeHtml(e.tel)}</span>`:""}
@@ -1337,7 +1337,7 @@ function openEmpForm(id){
   document.getElementById("fTel").value=e?(e.tel||""):"";
   document.getElementById("fEmail").value=e?(e.email||""):"";
   document.getElementById("fMat").value=e?(e.matricule||""):"";
-  document.getElementById("fPoste").value=e?(e.poste||"laveur"):"laveur";
+  document.getElementById("fPoste").value=e?(e.poste||"finition"):"finition";
   document.getElementById("fContrat").value=e?(e.contrat||""):"";
   document.getElementById("fPause").value=e?(e.pause!=null&&e.pause!==""?e.pause:"45"):"45";
   document.getElementById("empError").textContent="";
@@ -1384,7 +1384,7 @@ function renderEmpDetail(){
       <div class="ed-name">${escapeHtml(empName(e))} ${e.archived?'<span class="ed-arch">ancien salarié</span>':''}</div>
       <div class="ed-rows">
         ${row("Matricule", e.matricule?escapeHtml(e.matricule):"—")}
-        ${row("Poste", POSTE_LABEL[e.poste]||"Laveur auto")}
+        ${row("Poste", POSTE_LABEL[e.poste]||"Finition")}
         ${row("Contrat", e.contrat?escapeHtml(String(e.contrat))+" h/sem":"—")}
         ${row("Pause midi", escapeHtml(String(empPause(e)))+" min")}
         ${row("Téléphone", e.tel?escapeHtml(e.tel):"—")}
@@ -1736,7 +1736,7 @@ function dayLocked(dk){ return !!validated[dk]; }
 function buildSnapshot(dk){
   const rows=[];
   actives().forEach(e=>{ const p=planned(dk,e.id); const en=(records[dk]&&records[dk][e.id])||{}; if(!p.work && !en.arrStatus) return;
-    rows.push({nom:empName(e),matricule:e.matricule||"",poste:e.poste||"laveur",planArr:p.arr||"",planDep:p.dep||"",
+    rows.push({nom:empName(e),matricule:e.matricule||"",poste:e.poste||"finition",planArr:p.arr||"",planDep:p.dep||"",
       arrStatus:en.arrStatus||"",arrTime:en.arrTime||"",retardMin:en.retardMin||0,absMotif:en.absMotif||"",
       depStatus:en.depStatus||"",depTime:en.depTime||"",hsMin:en.hsMin||0,nbJobs:en.nbJobs||""}); });
   return {date:dk,rows};
