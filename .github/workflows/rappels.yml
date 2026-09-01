@@ -1,0 +1,40 @@
+name: Rappels Pointage
+# Notification push : 8h30 (sauf dimanche) et 19h30, heure de Paris.
+# Les crons sont en UTC : on lance aux deux heures possibles (été/hiver)
+# et le script ne poursuit que si l'heure de Paris correspond.
+on:
+  schedule:
+    - cron: "30 6 * * 1-6"   # 8h30 Paris (été)
+    - cron: "30 7 * * 1-6"   # 8h30 Paris (hiver)
+    - cron: "30 17 * * *"    # 19h30 Paris (été)
+    - cron: "30 18 * * *"    # 19h30 Paris (hiver)
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: "matin ou soir (test manuel)"
+        default: "soir"
+
+jobs:
+  notifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Déterminer le créneau
+        id: slot
+        run: |
+          if [ -n "${{ github.event.inputs.slot }}" ]; then
+            echo "slot=${{ github.event.inputs.slot }}" >> "$GITHUB_OUTPUT"
+          else
+            H=$(TZ=Europe/Paris date +%H)
+            if [ "$H" -lt 12 ]; then echo "slot=matin" >> "$GITHUB_OUTPUT"; else echo "slot=soir" >> "$GITHUB_OUTPUT"; fi
+          fi
+      - name: Envoyer les rappels
+        env:
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          SLOT: ${{ steps.slot.outputs.slot }}
+        run: |
+          npm install --no-save web-push@3
+          node scripts/notify.mjs

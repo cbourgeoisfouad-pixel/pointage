@@ -1,0 +1,22 @@
+name: Keep-alive Supabase
+# Interroge la base tous les 2 jours pour que le projet Supabase
+# ne soit JAMAIS considéré comme inactif (= plus jamais de pause/suppression).
+on:
+  schedule:
+    - cron: "43 6 */2 * *" # tous les 2 jours à 06:43 UTC
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping de la base
+        run: |
+          set -e
+          URL="https://iicxvdjhlwjwlbacjqgk.supabase.co/rest/v1"
+          KEY="sb_publishable_0Wb2TsVn-NJE4JllWS4nEQ_RtjLnM_Q"
+          for t in employees records; do
+            curl -fsS -m 30 "$URL/$t?select=*&limit=1" \
+              -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -o /dev/null
+          done
+          echo "Supabase actif ✅"
