@@ -2202,9 +2202,9 @@ function printWeekPlanningPDF(base){
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
   const days=[]; for(let i=0;i<6;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); days.push(d); }
-  const POSTE_ORDER={aspirateur:1,finition:2,laveur:2,technicien:3};
+  const POSTE_ORDER={aspirateur:1,finition:2,laveur:2};
   const posteOf=e=>e.poste==="laveur"?"finition":(e.poste||"finition");
-  const list=activesOn(key(ws)).slice().sort((a,b)=>{
+  const list=activesOn(key(ws)).filter(e=>posteOf(e)!=="technicien").slice().sort((a,b)=>{
     const pa=POSTE_ORDER[posteOf(a)]||9, pb=POSTE_ORDER[posteOf(b)]||9;
     if(pa!==pb) return pa-pb;
     return String(a.matricule||"").localeCompare(String(b.matricule||""),"fr",{numeric:true});
@@ -2239,7 +2239,8 @@ function printWeekPlanningPDF(base){
     tr.grp td{background:#1f2937;color:#fff;font-weight:bold;text-align:left;text-transform:uppercase;letter-spacing:.5px;font-size:11px;padding:5px 8px;}
     tr.sub td{background:#e5e7eb;font-weight:bold;font-size:11px;}
     tfoot td{font-weight:bold;background:#f6f6f6;}
-    @media print{@page{size:landscape;}}</style></head>
+    @page{size:A4 landscape;margin:10mm;}
+    @media print{body{padding:0;}}</style></head>
     <body><h1>Planning de la semaine — US CAR WASH</h1><div class="sub">Semaine ${esc(period)} · présences prévues, repos et congés</div>
     <table><thead><tr><th>Matricule</th><th>Salarié</th>${heads}</tr></thead>
     <tbody>${rows}</tbody>
