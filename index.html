@@ -235,6 +235,7 @@
   .week-quick{display:flex;gap:8px;padding:10px 12px 4px;}
   .week-quick button{flex:1;background:#eef1f4;border:none;border-radius:10px;padding:11px;font-weight:700;color:var(--ink);cursor:pointer;font-size:13px;}
   .week-quick button:active{background:#e0e4e9;}
+  .week-quick .wk-print{background:#1f2937;color:#fff;}
   .week-wrap{overflow-x:auto;padding:8px 12px calc(20px + var(--safe-bottom));-webkit-overflow-scrolling:touch;}
   table.wk{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;}
   .wk thead th{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;padding:6px 4px 8px;text-align:center;white-space:nowrap;line-height:1.25;}
@@ -569,6 +570,9 @@
     <button class="nav-arrow" onclick="changeWeek(-1)">‹</button>
     <div class="week-label" id="weekLabel"></div>
     <button class="nav-arrow" onclick="changeWeek(1)">›</button>
+  </div>
+  <div class="week-quick">
+    <button class="wk-print" onclick="printWeekPlanningPDF(weekRef)">🖨️ Imprimer cette semaine (A4 vestiaire)</button>
   </div>
   <div class="week-quick">
     <button onclick="weekTo(0)">Cette semaine</button>
@@ -2193,8 +2197,8 @@ function printWeekRecap(w){
 }
 
 /* ----- PDF planning de la semaine (présences prévues / repos / congés) ----- */
-function printWeekPlanningPDF(){
-  const ws=mondayOf(viewDate), last=new Date(ws); last.setDate(ws.getDate()+5);
+function printWeekPlanningPDF(base){
+  const ws=mondayOf(base||viewDate), last=new Date(ws); last.setDate(ws.getDate()+5);
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   const period="du "+ws.getDate()+" au "+last.getDate()+" "+last.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
   const days=[]; for(let i=0;i<6;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); days.push(d); }
