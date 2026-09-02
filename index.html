@@ -2283,7 +2283,7 @@ function printCustomReportAll(startKey,endKey){
   let rows="", gTot=0, gSup=0;
   list.forEach(e=>{ const st=rangeStats(e,startKey,endKey);
     gTot+=st.totalWorked; gSup+=st.sup;
-    rows+=`<tr class="emp"><td>${esc(e.matricule||"")}</td><td>${esc(empName(e))}</td><td>${e.contrat?esc(e.contrat)+" h":"—"}</td><td style="text-align:right">${fmtH(st.totalWorked)}</td><td style="text-align:right;font-weight:bold">${fmtH(st.sup)}</td></tr>`;
+    rows+=`<tr class="emp"><td>${esc(e.matricule||"")}</td><td>${esc(empName(e))}</td><td>${e.contrat?esc(e.contrat)+" h":"—"}</td><td></td><td style="text-align:right;font-weight:bold">${fmtH(st.sup)}</td></tr>`;
     weeks.forEach(w=>{
       const tot=weekWorked(e,w), sp=weekSplit(e,tot);
       rows+=`<tr class="wkline"><td></td><td class="wklbl">↳ ${esc(w.label)}</td><td></td><td style="text-align:right">${fmtH(tot)}</td><td style="text-align:right">${sp.hasContract&&sp.sup>0?"+ "+fmtH(sp.sup):"—"}</td></tr>`;
