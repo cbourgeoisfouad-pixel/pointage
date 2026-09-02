@@ -367,6 +367,9 @@
   .val-sig-lbl{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:6px;}
   .sig-canvas{width:100%;max-width:100%;height:210px;border:1.5px dashed var(--line);border-radius:12px;background:#fafafa;touch-action:none;display:block;}
   .sig-clear{margin-top:8px;background:#f3f4f6;color:var(--muted);border:none;border-radius:9px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;}
+  .sig-wrap{position:relative;}
+  .sig-x{position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:50%;border:none;background:#fee2e2;color:#b91c1c;font-size:17px;font-weight:800;cursor:pointer;line-height:1;z-index:2;}
+  .sig-x:active{background:#fecaca;}
 
   /* page Rapport */
   .rap-signer{color:var(--primary);font-weight:700;}
@@ -748,8 +751,7 @@
     <select id="valSigner"></select>
   </label>
   <div class="val-sig-lbl">Signature (signe dans le cadre avec le doigt)</div>
-  <canvas id="sigCanvas" class="sig-canvas"></canvas>
-  <button class="sig-clear" onclick="clearSig()">Effacer</button>
+  <div class="sig-wrap"><canvas id="sigCanvas" class="sig-canvas"></canvas><button class="sig-x" onclick="clearSig()" title="Effacer la signature">✕</button></div>
   <div class="form-error" id="valErr"></div>
   <div class="modal-actions">
     <button class="ov-reset" onclick="closeValidate()">Annuler</button>
@@ -1968,14 +1970,12 @@ function openEmpSign(id){
     section=`
       <div class="es-sigzone">
         <div class="val-sig-lbl">Signature du salarié (dans le cadre)</div>
-        <canvas id="empSigCanvas" class="sig-canvas"></canvas>
-        <button class="sig-clear" onclick="clearEmpSig()">Effacer</button>
+        <div class="sig-wrap"><canvas id="empSigCanvas" class="sig-canvas"></canvas><button class="sig-x" onclick="clearEmpSig()" title="Effacer la signature">✕</button></div>
         <label class="val-field" style="margin-top:16px;">Le responsable
           <select id="respSelect"></select>
         </label>
         <div class="val-sig-lbl">Signature du responsable</div>
-        <canvas id="respSigCanvas" class="sig-canvas"></canvas>
-        <button class="sig-clear" onclick="clearRespSig()">Effacer</button>
+        <div class="sig-wrap"><canvas id="respSigCanvas" class="sig-canvas"></canvas><button class="sig-x" onclick="clearRespSig()" title="Effacer la signature">✕</button></div>
         <div class="form-error" id="empSignErr"></div>
         <div class="es-actions">
           <button class="ov-save" id="empSignSaveBtn" onclick="saveEmpSign()">Valider les signatures</button>
