@@ -2264,11 +2264,30 @@ function printCustomReportAll(startKey,endKey){
   const period=start.toLocaleDateString("fr-FR")+" au "+end.toLocaleDateString("fr-FR");
   const list=actives().filter(e=>bornBy(e,endKey)).slice()
     .sort((a,b)=>String(a.matricule||"").localeCompare(String(b.matricule||""),"fr",{numeric:true}));
-  // Page 1 : récap global
+  // Semaines couvertes par la période (lundi → samedi, bornées à la période)
+  const weeks=[];
+  for(let ws=mondayOf(new Date(start)); ws<=end; ws.setDate(ws.getDate()+7)){
+    const a=new Date(Math.max(ws,start)); const sat=new Date(ws); sat.setDate(ws.getDate()+5);
+    const b=new Date(Math.min(sat,end));
+    if(a<=b) weeks.push({ws:new Date(ws), a, b,
+      label:"Semaine du "+a.getDate()+(a.getMonth()===b.getMonth()?"":" "+a.toLocaleDateString("fr-FR",{month:"short"}))+" au "+b.getDate()+" "+b.toLocaleDateString("fr-FR",{month:"short"})});
+  }
+  const weekWorked=(e,w)=>{ const pause=parseInt(empPause(e),10)||0; let tot=0;
+    for(let d=new Date(w.a); d<=w.b; d.setDate(d.getDate()+1)){ if(d.getDay()===0) continue;
+      const dk=key(d), en=(records[dk]&&records[dk][e.id])||{};
+      // même règle que rangeStats : le pointage réel prime sur le planning
+      if(en.arrStatus && en.arrStatus!=="absent" && en.arrTime && en.depTime)
+        tot+=Math.max(0,(toMin(en.depTime)-toMin(en.arrTime))-pause); }
+    return tot; };
+  // Page 1 : récap global — ligne salarié + une sous-ligne par semaine
   let rows="", gTot=0, gSup=0;
   list.forEach(e=>{ const st=rangeStats(e,startKey,endKey);
     gTot+=st.totalWorked; gSup+=st.sup;
-    rows+=`<tr><td>${esc(e.matricule||"")}</td><td>${esc(empName(e))}</td><td>${e.contrat?esc(e.contrat)+" h":"—"}</td><td style="text-align:right">${fmtH(st.totalWorked)}</td><td style="text-align:right;font-weight:bold">${fmtH(st.sup)}</td></tr>`;
+    rows+=`<tr class="emp"><td>${esc(e.matricule||"")}</td><td>${esc(empName(e))}</td><td>${e.contrat?esc(e.contrat)+" h":"—"}</td><td style="text-align:right">${fmtH(st.totalWorked)}</td><td style="text-align:right;font-weight:bold">${fmtH(st.sup)}</td></tr>`;
+    weeks.forEach(w=>{
+      const tot=weekWorked(e,w), sp=weekSplit(e,tot);
+      rows+=`<tr class="wkline"><td></td><td class="wklbl">↳ ${esc(w.label)}</td><td></td><td style="text-align:right">${fmtH(tot)}</td><td style="text-align:right">${sp.hasContract&&sp.sup>0?"+ "+fmtH(sp.sup):"—"}</td></tr>`;
+    });
   });
   // Pages suivantes : détail jour par jour de chaque salarié, sous-total par semaine
   let pages="";
@@ -2309,6 +2328,9 @@ function printCustomReportAll(startKey,endKey){
     table{width:100%;border-collapse:collapse;font-size:13px;}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left;}th{background:#eee;}tfoot td{font-weight:bold;background:#f6f6f6;}
     .hsrow td{color:#b45309;}.wr-repos,.wr-none{color:#999;}.wr-abs{color:#b91c1c;}.wr-partial{color:#b45309;}
     tr.wksub td{background:#eef2f7;font-weight:bold;font-size:12px;}.hs{color:#b45309;font-weight:normal;}
+    tr.emp td{font-weight:bold;background:#f9fafb;}
+    tr.wkline td{font-size:12px;color:#444;border-top:none;padding:4px 9px;}
+    tr.wkline .wklbl{color:#666;}
     .emp-page{page-break-before:always;padding-top:6px;}.note{color:#888;font-size:11px;margin-top:10px;}</style></head>
     <body><h1>Rapport de présence — US CAR WASH</h1><div class="sub">Période du ${esc(period)}</div>
     <table><thead><tr><th>Matricule</th><th>Salarié</th><th>Contrat</th><th>Total réalisé</th><th>Heures sup.</th></tr></thead>
