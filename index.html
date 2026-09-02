@@ -2316,7 +2316,6 @@ function printCustomReportAll(startKey,endKey){
       <table><thead><tr><th>Jour</th><th>Présence</th><th style="text-align:right">Travaillé</th></tr></thead>
       <tbody>${dayRows}</tbody>
       <tfoot>
-        <tr><td colspan="2">Total période</td><td style="text-align:right">${fmtH(st.totalWorked)}</td></tr>
         <tr><td colspan="2">Contrat hebdomadaire</td><td style="text-align:right">${e.contrat?esc(e.contrat)+" h":"—"}</td></tr>
         <tr class="hsrow"><td colspan="2">HEURES SUPPLÉMENTAIRES (cumul des semaines)</td><td style="text-align:right">${st.sup>0?"+ "+fmtH(st.sup):"aucune"}</td></tr>
       </tfoot></table>
