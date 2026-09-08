@@ -661,15 +661,16 @@
 <section class="page" id="page7">
   <div class="week-head"><div class="week-label">Congés</div></div>
   <div class="rap-bulle">
-    <div class="rap-bulle-title">🏖️ Déclarer un congé</div>
+    <div class="rap-bulle-title">🏖️ Déclarer une absence</div>
     <label class="cust-field">Salarié<select id="congEmp"></select></label>
+    <label class="cust-field">Motif<select id="congMotif"><option value="conge">🏖️ Congé</option><option value="maladie">🤒 Arrêt maladie</option></select></label>
     <div class="cust-dates">
       <label class="cust-field">Du<input type="date" id="congStart"></label>
       <label class="cust-field">Au (inclus)<input type="date" id="congEnd"></label>
     </div>
     <button class="btn-primary" style="margin-top:12px;width:100%;" onclick="addConge()">＋ Enregistrer le congé</button>
     <div class="form-error" id="congErr"></div>
-    <p class="hint" style="margin:10px 2px 0;">Le salarié sera automatiquement marqué « Absent (Congé) » sur tous ses jours de travail prévus jusqu'à la date de fin. Les jours déjà pointés ou validés ne sont pas touchés.</p>
+    <p class="hint" style="margin:10px 2px 0;">Le salarié sera automatiquement marqué « Absent » avec le motif choisi (Congé ou Arrêt maladie) sur tous ses jours de travail prévus jusqu'à la date de fin. Les jours déjà pointés ou validés ne sont pas touchés.</p>
   </div>
   <div class="rap-bulle">
     <div class="rap-bulle-title">📅 Congés enregistrés</div>
@@ -829,7 +830,7 @@ async function loadAll(){
     sb.from("responsables").select("*"),
     sb.from("conges").select("*")
   ]);
-  if(cng.error){ congesTableOk=false; } else { conges=(cng.data||[]).map(r=>({id:r.id,empId:r.emp_id,start:r.start_date,end:r.end_date})); }
+  if(cng.error){ congesTableOk=false; } else { conges=(cng.data||[]).map(r=>({id:r.id,empId:r.emp_id,start:r.start_date,end:r.end_date,motif:r.motif||"conge"})); }
   responsables=(resp.data||[]).slice().sort((a,b)=>(a.created_at||"").localeCompare(b.created_at||""));
   (val.data||[]).forEach(r=>{ validated[r.date]={signer:r.signer||"",signature:r.signature||"",snapshot:r.snapshot||null,validated_at:r.validated_at}; });
   (wsig.data||[]).forEach(r=>{ (weekSigs[r.week]=weekSigs[r.week]||{})[r.emp_id]={signature:r.signature||"",signed_at:r.signed_at,responsable:r.responsable||"",respSignature:r.resp_signature||""}; });
@@ -853,7 +854,14 @@ function delRecRow(dk,id){ sb.from("records").delete().match({date:dk,emp_id:id}
 /* =========================================================
    CONGÉS — déclaration + marquage automatique "Absent (Congé)"
    ========================================================= */
-function pushConge(c){ sb.from("conges").upsert({id:c.id,emp_id:c.empId,start_date:c.start,end_date:c.end}).then(({error})=>syncErr("pushConge",error)); }
+function pushConge(c){
+  sb.from("conges").upsert({id:c.id,emp_id:c.empId,start_date:c.start,end_date:c.end,motif:c.motif||"conge"}).then(({error})=>{
+    if(error && /motif/.test(error.message||"")){ // colonne pas encore créée : on enregistre sans le motif
+      sb.from("conges").upsert({id:c.id,emp_id:c.empId,start_date:c.start,end_date:c.end}).then(({error:e2})=>syncErr("pushConge",e2));
+      const el=document.getElementById("congErr"); if(el) el.textContent="⚠️ Pour mémoriser le motif, exécute dans Supabase → SQL Editor : alter table public.conges add column if not exists motif text default 'conge';";
+    } else syncErr("pushConge",error);
+  });
+}
 function delCongeRow(id){ sb.from("conges").delete().match({id}).then(({error})=>syncErr("delConge",error)); }
 function congeDays(c){ // jours de travail prévus dans la période (hors dimanche)
   const out=[]; const start=parseKey(c.start), end=parseKey(c.end); let n=0;
@@ -864,23 +872,23 @@ function congeDays(c){ // jours de travail prévus dans la période (hors dimanc
   }
   return out;
 }
-function applyConge(c){ // marque Absent (Congé) sans écraser un vrai pointage ni une journée validée
-  let n=0;
+function applyConge(c){ // marque Absent (Congé ou Arrêt maladie) sans écraser un vrai pointage ni une journée validée
+  const motif=c.motif||"conge"; let n=0;
   congeDays(c).forEach(dk=>{
     if(dayLocked(dk)) return;
     const en=records[dk]&&records[dk][c.empId];
-    if(en && en.arrStatus && !(en.arrStatus==="absent"&&en.absMotif==="conge")) return; // déjà pointé autrement
+    if(en && en.arrStatus && !(en.arrStatus==="absent"&&(en.absMotif==="conge"||en.absMotif==="maladie"))) return; // déjà pointé autrement
     if(!records[dk]) records[dk]={};
-    records[dk][c.empId]={arrStatus:"absent",absMotif:"conge",arrTime:"",retardMin:0,depStatus:"",depTime:"",hsMin:0,nbJobs:""};
+    records[dk][c.empId]={arrStatus:"absent",absMotif:motif,arrTime:"",retardMin:0,depStatus:"",depTime:"",hsMin:0,nbJobs:""};
     pushRec(dk,c.empId); n++;
   });
   return n;
 }
-function unapplyConge(c){ // retire uniquement les jours encore marqués Absent (Congé)
+function unapplyConge(c){ // retire uniquement les jours encore marqués Absent (Congé / Arrêt maladie)
   congeDays(c).forEach(dk=>{
     if(dayLocked(dk)) return;
     const en=records[dk]&&records[dk][c.empId];
-    if(en && en.arrStatus==="absent" && en.absMotif==="conge"){ delete records[dk][c.empId]; delRecRow(dk,c.empId); }
+    if(en && en.arrStatus==="absent" && (en.absMotif==="conge"||en.absMotif==="maladie")){ delete records[dk][c.empId]; delRecRow(dk,c.empId); }
   });
 }
 function addConge(){
@@ -890,12 +898,13 @@ function addConge(){
   if(!empId){ err.textContent="Choisis un salarié."; return; }
   if(!s||!en){ err.textContent="Choisis les deux dates."; return; }
   if(s>en){ err.textContent="La date de début doit être avant la date de fin."; return; }
-  const c={id:uid(), empId, start:s, end:en};
+  const motif=document.getElementById("congMotif").value||"conge";
+  const c={id:uid(), empId, start:s, end:en, motif};
   conges.push(c); pushConge(c);
   const n=applyConge(c);
   renderConges();
   const e=employees.find(x=>x.id===empId);
-  alert(`Congé enregistré pour ${e?empName(e):"?"} : ${n} jour(s) marqué(s) « Absent (Congé) » dans les plannings.`);
+  alert(`${motif==="maladie"?"Arrêt maladie":"Congé"} enregistré pour ${e?empName(e):"?"} : ${n} jour(s) marqué(s) « Absent (${absLabel(motif)}) » dans les plannings.`);
 }
 function removeConge(id){
   const c=conges.find(x=>x.id===id); if(!c) return;
@@ -1016,7 +1025,7 @@ grant all on public.conges to anon, authenticated;</pre>
     const status=c.end<today?`<span class="badge none">terminé</span>`:(c.start<=today?`<span class="badge green">en cours</span>`:`<span class="badge amber">à venir</span>`);
     const nd=congeDays(c).length;
     return `<div class="cong-item">
-      <div class="cong-info"><b>${escapeHtml(e?empName(e):"Salarié supprimé")}</b>
+      <div class="cong-info"><b>${escapeHtml(e?empName(e):"Salarié supprimé")}</b> <span class="badge ${c.motif==="maladie"?"red":"green"}">${c.motif==="maladie"?"🤒 Maladie":"🏖️ Congé"}</span>
         <span class="cong-dates">du ${frDateKey(c.start)} au ${frDateKey(c.end)} · ${nd} jour${nd>1?"s":""} travaillé${nd>1?"s":""}</span></div>
       <div class="cong-actions">${status}<button class="cong-del" onclick="removeConge('${c.id}')" title="Supprimer">🗑</button></div>
     </div>`;
@@ -1126,7 +1135,7 @@ const RETARD_OPTS=(()=>{ const a=[]; for(let m=15;m<=300;m+=15) a.push([m,minLab
 function retardLabel(min){ const o=RETARD_OPTS.find(x=>x[0]===min); return o?o[1]:minLabel(min); }
 const HSUP_OPTS=[[15,"15 min"],[30,"30 min"],[45,"45 min"],[60,"1 heure"],[75,"1 h 15"],[90,"1 h 30"],[105,"1 h 45"],[120,"2 heures"]];
 function hsupLabel(min){ const o=HSUP_OPTS.find(x=>x[0]===min); return o?o[1]:(min+" min"); }
-const ABS_OPTS=[["repos","Repos"],["conge","Congé"],["injustifiee","Absence injustifiée"]];
+const ABS_OPTS=[["repos","Repos"],["conge","Congé"],["maladie","Arrêt maladie"],["injustifiee","Absence injustifiée"]];
 function absLabel(v){ const o=ABS_OPTS.find(x=>x[0]===v); return o?o[1]:""; }
 
 function cardInner(dk,e){
@@ -2221,6 +2230,7 @@ function printWeekPlanningPDF(base){
     const cells=days.map((d,i)=>{
       const dk=key(d), p=planned(dk,e.id), en=(records[dk]&&records[dk][e.id])||{};
       if(en.arrStatus==="absent"&&en.absMotif==="conge") return `<td class="cg">Congé</td>`;
+      if(en.arrStatus==="absent"&&en.absMotif==="maladie") return `<td class="cg">Maladie</td>`;
       if(!p.work) return `<td class="rp">Repos</td>`;
       counts[i]++; catCounts[i]++;
       return `<td>${esc(p.arr||"—")} – ${esc(p.dep||"—")}</td>`;
