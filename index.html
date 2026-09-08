@@ -292,6 +292,7 @@
   .arch-btn{background:#fef3c7;color:#b45309;}
   .restore-btn{background:var(--green-bg);color:var(--green);}
   .emp-card.archived{opacity:.65;background:#f7f8fa;}
+  .emp-until{font-size:12px;color:#b91c1c;font-weight:600;margin-top:3px;}
   .section-title.anc{margin:18px 6px 8px;}
   .anc-note{font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted);}
   .add-emp-bar{padding:4px 12px calc(24px + var(--safe-bottom));}
@@ -678,6 +679,19 @@
   </div>
 </section>
 
+<!-- ===================== ARCHIVAGE : DATE DE SORTIE (modal) ===================== -->
+<div id="archOverlay" class="modal-overlay" onclick="closeArchive()"></div>
+<div id="archModal" class="modal">
+  <div class="modal-title">📦 Sortie des effectifs</div>
+  <p class="hint" id="archName" style="margin:4px 0 10px;"></p>
+  <label class="cust-field">Date de sortie des effectifs<input type="date" id="archDate"></label>
+  <p class="hint" style="margin:10px 0 0;">Le salarié disparaîtra du pointage et des plannings. Tout son historique de présence est conservé.</p>
+  <div class="modal-actions">
+    <button class="ov-reset" onclick="closeArchive()">Annuler</button>
+    <button class="ov-save" onclick="confirmArchive()">Archiver</button>
+  </div>
+</div>
+
 <!-- ===================== MENU ÉDITION HORAIRE (modal) ===================== -->
 <div id="modalOverlay" class="modal-overlay" onclick="closeSchedule()"></div>
 <div id="scheduleModal" class="modal">
@@ -1045,6 +1059,7 @@ function toMin(t){ if(!t||t.indexOf(":")<0) return null; const [h,m]=t.split(":"
 function planned(dk,id){
   const t=templates[id];
   if(t && t.since && key(mondayOf(parseKey(dk)))<t.since) return {work:false,arr:"",dep:""}; // avant l'arrivée du salarié
+  if(t && t.until && dk>t.until) return {work:false,arr:"",dep:""}; // après la sortie des effectifs
   const ov=overrides[dk] && overrides[dk][id]; if(ov) return ov;
   const wd=parseKey(dk).getDay();
   return t ? t[wd] : {work:false,arr:"",dep:""};
@@ -1332,7 +1347,7 @@ function renderEmployees(){
     html+=`<div class="section-title anc">Anciens salariés <span class="anc-note">(historique conservé)</span></div>`;
     html+=arch.map(e=>`
       <div class="emp-card archived">
-        <div class="emp-main" onclick="openEmpDetail('${e.id}')"><div class="emp-nom">${escapeHtml(empName(e))} <span class="chev">›</span></div>${empMetaHTML(e)}</div>
+        <div class="emp-main" onclick="openEmpDetail('${e.id}')"><div class="emp-nom">${escapeHtml(empName(e))} <span class="chev">›</span></div>${empMetaHTML(e)}${templates[e.id]&&templates[e.id].until?`<div class="emp-until">🚪 Sorti des effectifs le ${frDateKey(templates[e.id].until)}</div>`:""}</div>
         <div class="emp-actions">
           <button class="edit-emp" onclick="openEmpForm('${e.id}')" title="Modifier">✎</button>
           <button class="restore-btn" onclick="restoreEmp('${e.id}')" title="Réactiver">↩︎</button>
@@ -1383,8 +1398,25 @@ function saveEmpForm(){
   if(document.getElementById("empDetail").classList.contains("show")) renderEmpDetail();
 }
 /* archivage (jamais de suppression : l'historique est conservé) */
-function archiveEmp(id){ const e=employees.find(x=>x.id===id); if(!confirm(`Mettre ${e?empName(e):"ce salarié"} en « ancien salarié » ?\n\nIl disparaîtra du pointage et des plannings, mais tout son historique de présence est conservé.`)) return; if(e){ e.archived=true; pushEmp(id); renderEmployees(); } }
-function restoreEmp(id){ const e=employees.find(x=>x.id===id); if(e){ e.archived=false; pushEmp(id); renderEmployees(); } }
+let archPendingId=null;
+function archiveEmp(id){
+  const e=employees.find(x=>x.id===id); if(!e) return;
+  archPendingId=id;
+  document.getElementById("archName").textContent=empName(e);
+  document.getElementById("archDate").value=key(startOfToday());
+  document.getElementById("archOverlay").classList.add("show");
+  document.getElementById("archModal").classList.add("show");
+}
+function closeArchive(){ archPendingId=null; document.getElementById("archOverlay").classList.remove("show"); document.getElementById("archModal").classList.remove("show"); }
+function confirmArchive(){
+  const e=employees.find(x=>x.id===archPendingId); if(!e){ closeArchive(); return; }
+  const d=document.getElementById("archDate").value;
+  if(!d){ alert("Choisis la date de sortie."); return; }
+  e.archived=true;
+  ensureTemplate(e.id); templates[e.id].until=d; // plus de planning après cette date (historique conservé)
+  pushEmp(e.id); closeArchive(); renderEmployees();
+}
+function restoreEmp(id){ const e=employees.find(x=>x.id===id); if(e){ e.archived=false; if(templates[id]) delete templates[id].until; pushEmp(id); renderEmployees(); } }
 
 /* ----- Fiche salarié plein écran + documents ----- */
 let edDetailId=null;
