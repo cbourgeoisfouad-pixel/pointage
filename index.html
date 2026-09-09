@@ -2322,8 +2322,17 @@ function printWeekPlanningPDF(base){
     .cl-eve{color:#3730a3;background:#e0e7ff;}
     .legend{margin-top:10px;font-size:11px;color:#555;}
     tfoot td{font-weight:bold;background:#f6f6f6;}
-    @page{size:A4 landscape;margin:10mm;}
-    @media print{body{padding:0;}}</style></head>
+    @page{size:A4 landscape;margin:8mm;}
+    @media print{
+      body{padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      h1{font-size:15px;}.sub{font-size:10px;margin-bottom:6px;}
+      table{font-size:9.5px;page-break-inside:avoid;}
+      th,td{padding:2px 4px;}
+      tr.grp td,tr.sub td{padding:2px 5px;font-size:9px;}
+      td.nm{font-size:9.5px;}
+      .cl{font-size:8px;padding:0 3px;margin-top:1px;}
+      .legend{font-size:8.5px;margin-top:4px;}
+    }</style></head>
     <body><h1>Planning de la semaine — US CAR WASH</h1><div class="sub">Semaine ${esc(period)} · présences prévues, repos et congés</div>
     <table><thead><tr><th>Matricule</th><th>Salarié</th>${heads}</tr></thead>
     <tbody>${rows}</tbody>
