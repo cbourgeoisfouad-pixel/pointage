@@ -2251,6 +2251,42 @@ function printWeekPlanningPDF(base){
     return String(a.matricule||"").localeCompare(String(b.matricule||""),"fr",{numeric:true});
   });
   if(!list.length){ alert("Aucun salarié actif cette semaine."); return; }
+  // 🧹 Nettoyage — deux rotations automatiques, reconduites sans fin (repos/congés/maladie exclus) :
+  //  · chaque jour 9h00-9h15 : parmi les présents qui commencent à 9h, celui qui a eu le moins de tours
+  //  · le samedi 17h45-18h00 : priorité à ceux qui ne commencent JAMAIS à 9h (ils n'ont pas le créneau du matin)
+  const cleaners={}, cleanersEve={};
+  (()=>{
+    const EPOCH=parseKey("2026-09-09"); // début du roulement automatique
+    const endD=days[days.length-1]; if(endD<EPOCH) return;
+    const cmpMat=(a,b)=>String(a.matricule||"").localeCompare(String(b.matricule||""),"fr",{numeric:true});
+    const starts9=e=>{ const t=templates[e.id]||{}; for(let d=1;d<=6;d++){ const x=t[d]; if(x&&x.work&&x.arr==="09:00") return true; } return false; };
+    const eligMorning=dk=>list.filter(e=>{
+      const p=planned(dk,e.id), en=(records[dk]&&records[dk][e.id])||{};
+      return p.work && p.arr==="09:00" && !(en.arrStatus==="absent");
+    });
+    const eligEve=dk=>list.filter(e=>{
+      const p=planned(dk,e.id), en=(records[dk]&&records[dk][e.id])||{};
+      return p.work && p.dep && toMin(p.dep)!==null && toMin(p.dep)>=toMin("18:00") && !(en.arrStatus==="absent");
+    });
+    const nT={}, lT={}, nE={}, lE={}; let n=0;
+    for(let d=new Date(EPOCH); d<=endD && n<800; d.setDate(d.getDate()+1), n++){
+      if(d.getDay()===0) continue;
+      const dk=key(d);
+      const em=eligMorning(dk);
+      if(em.length){
+        em.sort((a,b)=>(nT[a.id]||0)-(nT[b.id]||0)||(lT[a.id]||0)-(lT[b.id]||0)||cmpMat(a,b));
+        const c=em[0]; nT[c.id]=(nT[c.id]||0)+1; lT[c.id]=n+1; cleaners[dk]=c.id;
+      }
+      if(d.getDay()===6){
+        let ev=eligEve(dk).filter(e=>e.id!==cleaners[dk]); // pas 2 corvées le même jour
+        if(!ev.length) ev=eligEve(dk);
+        if(ev.length){
+          ev.sort((a,b)=>(starts9(a)?1:0)-(starts9(b)?1:0)||(nE[a.id]||0)-(nE[b.id]||0)||(lE[a.id]||0)-(lE[b.id]||0)||cmpMat(a,b));
+          const c=ev[0]; nE[c.id]=(nE[c.id]||0)+1; lE[c.id]=n+1; cleanersEve[dk]=c.id;
+        }
+      }
+    }
+  })();
   const counts=days.map(()=>0);
   let rows="", lastPoste=null, catLabel="", catCounts=days.map(()=>0);
   const flushCat=()=>{ if(lastPoste===null) return;
@@ -2265,7 +2301,9 @@ function printWeekPlanningPDF(base){
       if(en.arrStatus==="absent"&&en.absMotif==="maladie") return `<td class="cg">Maladie</td>`;
       if(!p.work) return `<td class="rp">Repos</td>`;
       counts[i]++; catCounts[i]++;
-      return `<td>${esc(p.arr||"—")} – ${esc(p.dep||"—")}</td>`;
+      let clean=cleaners[dk]===e.id?`<div class="cl">🧹 9h00-9h15</div>`:"";
+      if(cleanersEve[dk]===e.id) clean+=`<div class="cl cl-eve">🧹 17h45-18h00</div>`;
+      return `<td>${esc(p.arr||"—")} – ${esc(p.dep||"—")}${clean}</td>`;
     }).join("");
     rows+=`<tr><td>${esc(e.matricule||"")}</td><td class="nm">${esc(empName(e))}</td>${cells}</tr>`;
   });
@@ -2280,6 +2318,9 @@ function printWeekPlanningPDF(base){
     td.rp{color:#1d4ed8;background:#eff6ff;font-weight:bold;}td.cg{color:#b91c1c;background:#fdf2f2;font-weight:bold;}
     tr.grp td{background:#1f2937;color:#fff;font-weight:bold;text-align:left;text-transform:uppercase;letter-spacing:.5px;font-size:11px;padding:5px 8px;}
     tr.sub td{background:#e5e7eb;font-weight:bold;font-size:11px;}
+    .cl{margin-top:3px;font-size:10px;font-weight:bold;color:#92400e;background:#fef3c7;border-radius:6px;padding:1px 4px;display:inline-block;}
+    .cl-eve{color:#3730a3;background:#e0e7ff;}
+    .legend{margin-top:10px;font-size:11px;color:#555;}
     tfoot td{font-weight:bold;background:#f6f6f6;}
     @page{size:A4 landscape;margin:10mm;}
     @media print{body{padding:0;}}</style></head>
@@ -2287,6 +2328,7 @@ function printWeekPlanningPDF(base){
     <table><thead><tr><th>Matricule</th><th>Salarié</th>${heads}</tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr><td colspan="2">Présents prévus</td>${totals}</tr></tfoot></table>
+    <div class="legend">🧹 = nettoyage de l'espace de pause et des toilettes. Chaque jour de 9h00 à 9h15 (rotation entre les salariés commençant à 9h) et le samedi de 17h45 à 18h00 (priorité à ceux qui ne commencent jamais à 9h). Rotation automatique — repos, congés et arrêts maladie exclus.</div>
     </body></html>`);
   win.document.close(); setTimeout(()=>{try{win.print();}catch(e){}},350);
 }
