@@ -744,7 +744,7 @@
     <label>N° de matricule <span class="req">obligatoire</span><input id="fMat" type="text" autocomplete="off"></label>
     <label>Prénom<input id="fPrenom" type="text" autocomplete="off"></label>
     <label>Nom<input id="fNom" type="text" autocomplete="off"></label>
-    <label>Poste<select id="fPoste"><option value="finition">Finition</option><option value="aspirateur">Aspirateur</option><option value="technicien">Technicien pare-brise</option></select></label>
+    <label>Poste<select id="fPoste"><option value="finition">Finition</option><option value="aspirateur">Aspirateur</option><option value="technicien">Technicien pare-brise</option><option value="admin">Admin</option></select></label>
     <label>Téléphone<input id="fTel" type="tel" inputmode="tel" autocomplete="off"></label>
     <label>Email<input id="fEmail" type="email" inputmode="email" autocomplete="off" placeholder="nom@exemple.fr"></label>
     <label>Heures par semaine (contrat)<input id="fContrat" type="text" inputmode="numeric" autocomplete="off" placeholder="ex. 35"></label>
@@ -819,7 +819,7 @@ const DEFAULT_EMP=[{prenom:"Mathieu",nom:"Garnier"},{prenom:"Karim",nom:"Benali"
 const ARR_LABEL={present:"Présent",retard:"En retard",absent:"Absent"};
 const DEP_LABEL={parti:"Parti",avance:"Parti en avance",heuresup:"Heure sup."};
 const ARR_COLOR={present:"green",retard:"amber",absent:"red"};
-const POSTE_LABEL={finition:"Finition",aspirateur:"Aspirateur",technicien:"Technicien pare-brise",laveur:"Finition"/* ancien nom */};
+const POSTE_LABEL={finition:"Finition",aspirateur:"Aspirateur",technicien:"Technicien pare-brise",admin:"Admin",laveur:"Finition"/* ancien nom */};
 const DEP_COLOR={parti:"green",avance:"blue",heuresup:"amber"};
 
 let employees=[], templates={}, overrides={}, records={}, validated={}, weekSigs={}, responsables=[];
@@ -2245,7 +2245,7 @@ function printWeekPlanningPDF(base){
   const days=[]; for(let i=0;i<6;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); days.push(d); }
   const POSTE_ORDER={aspirateur:1,finition:2,laveur:2};
   const posteOf=e=>e.poste==="laveur"?"finition":(e.poste||"finition");
-  const list=activesOn(key(ws)).filter(e=>posteOf(e)!=="technicien").slice().sort((a,b)=>{
+  const list=activesOn(key(ws)).filter(e=>["aspirateur","finition"].includes(posteOf(e))).slice().sort((a,b)=>{
     const pa=POSTE_ORDER[posteOf(a)]||9, pb=POSTE_ORDER[posteOf(b)]||9;
     if(pa!==pb) return pa-pb;
     return String(a.matricule||"").localeCompare(String(b.matricule||""),"fr",{numeric:true});
