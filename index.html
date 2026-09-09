@@ -1150,7 +1150,7 @@ const RETARD_OPTS=(()=>{ const a=[]; for(let m=15;m<=300;m+=15) a.push([m,minLab
 function retardLabel(min){ const o=RETARD_OPTS.find(x=>x[0]===min); return o?o[1]:minLabel(min); }
 const HSUP_OPTS=[[15,"15 min"],[30,"30 min"],[45,"45 min"],[60,"1 heure"],[75,"1 h 15"],[90,"1 h 30"],[105,"1 h 45"],[120,"2 heures"]];
 function hsupLabel(min){ const o=HSUP_OPTS.find(x=>x[0]===min); return o?o[1]:(min+" min"); }
-const ABS_OPTS=[["repos","Repos"],["conge","Congé"],["maladie","Arrêt maladie"],["injustifiee","Absence injustifiée"]];
+const ABS_OPTS=[["repos","Repos"],["conge","Congé"],["maladie","Arrêt maladie"],["formation","École (formation)"],["injustifiee","Absence injustifiée"]];
 function absLabel(v){ const o=ABS_OPTS.find(x=>x[0]===v); return o?o[1]:""; }
 
 function cardInner(dk,e){
@@ -2299,6 +2299,7 @@ function printWeekPlanningPDF(base){
       const dk=key(d), p=planned(dk,e.id), en=(records[dk]&&records[dk][e.id])||{};
       if(en.arrStatus==="absent"&&en.absMotif==="conge") return `<td class="cg">Congé</td>`;
       if(en.arrStatus==="absent"&&en.absMotif==="maladie") return `<td class="cg">Maladie</td>`;
+      if(en.arrStatus==="absent"&&en.absMotif==="formation") return `<td class="ec">🎓 École</td>`;
       if(!p.work) return `<td class="rp">Repos</td>`;
       counts[i]++; catCounts[i]++;
       let clean=cleaners[dk]===e.id?`<div class="cl">🧹 9h00-9h15</div>`:"";
@@ -2316,6 +2317,7 @@ function printWeekPlanningPDF(base){
     table{width:100%;border-collapse:collapse;font-size:12px;}th,td{border:1px solid #bbb;padding:6px 7px;text-align:center;}th{background:#eee;}
     td.nm{text-align:left;font-weight:bold;white-space:nowrap;}
     td.rp{color:#1d4ed8;background:#eff6ff;font-weight:bold;}td.cg{color:#b91c1c;background:#fdf2f2;font-weight:bold;}
+    td.ec{color:#6d28d9;background:#f5f3ff;font-weight:bold;}
     tr.grp td{background:#1f2937;color:#fff;font-weight:bold;text-align:left;text-transform:uppercase;letter-spacing:.5px;font-size:11px;padding:5px 8px;}
     tr.sub td{background:#e5e7eb;font-weight:bold;font-size:11px;}
     .cl{margin-top:3px;font-size:10px;font-weight:bold;color:#92400e;background:#fef3c7;border-radius:6px;padding:1px 4px;display:inline-block;}
