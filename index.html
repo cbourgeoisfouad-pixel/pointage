@@ -246,6 +246,8 @@
   .wk td .cell span:last-child{color:var(--muted);}
   .wk td .cell.repos{color:var(--muted);font-weight:600;background:#f7f8fa;}
   .wk td .cell.ovr{border-color:var(--blue);background:var(--blue-bg);}
+  .wk td .cell.abs-ec{color:#6d28d9;background:#f5f3ff;border-color:#ddd6fe;font-weight:700;font-size:11px;}
+  .wk td .cell.abs-cg{color:#b91c1c;background:#fdf2f2;border-color:#fecaca;font-weight:700;font-size:11px;}
   .wk td .cell.ovr .a,.wk td .cell.ovr span{color:var(--blue);}
 
   /* ===================== MENU MODAL ===================== */
@@ -1635,6 +1637,11 @@ function renderWeek(){
     let row=`<td class="name-col">${escapeHtml(empName(e))}</td>`;
     row+=days.map(d=>{
       const dk=key(d), p=planned(dk,e.id), ovr=overrides[dk]&&overrides[dk][e.id];
+      // Absences déjà enregistrées (école, congé, maladie) : elles priment sur le planning théorique
+      const en=(records[dk]&&records[dk][e.id])||{};
+      if(en.arrStatus==="absent"&&en.absMotif==="formation") return `<td><div class="cell abs-ec" onclick="openSchedule('${e.id}','${dk}')">🎓<br>École</div></td>`;
+      if(en.arrStatus==="absent"&&en.absMotif==="conge") return `<td><div class="cell abs-cg" onclick="openSchedule('${e.id}','${dk}')">🏖️<br>Congé</div></td>`;
+      if(en.arrStatus==="absent"&&en.absMotif==="maladie") return `<td><div class="cell abs-cg" onclick="openSchedule('${e.id}','${dk}')">🤒<br>Maladie</div></td>`;
       if(!p.work) return `<td><div class="cell repos ${ovr?"ovr":""}" onclick="openSchedule('${e.id}','${dk}')">Repos</div></td>`;
       return `<td><div class="cell ${ovr?"ovr":""}" onclick="openSchedule('${e.id}','${dk}')"><span class="a">${p.arr||"—"}</span><span>${p.dep||"—"}</span></div></td>`;
     }).join("");
