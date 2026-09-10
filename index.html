@@ -2454,10 +2454,11 @@ function printCustomReport(empId,startKey,endKey){
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   let rows="", n=0;
   for(let d=new Date(start); d<=end && n<400; d.setDate(d.getDate()+1), n++){ if(d.getDay()===0) continue; /* pas de dimanche */ const dk=key(d); const p=planned(dk,e.id), rec=(records[dk]&&records[dk][e.id])||{}; let pres, mins=0;
-    if(!p.work) pres="Repos";
-    else if(rec.arrStatus==="absent") pres="Absent"+(rec.absMotif?" ("+absLabel(rec.absMotif)+")":"");
-    else if(rec.arrStatus&&rec.arrTime&&rec.depTime){ mins=Math.max(0,(toMin(rec.depTime)-toMin(rec.arrTime))-pause); pres=rec.arrTime+" → "+rec.depTime; }
-    else if(rec.arrStatus) pres="Sortie non pointée"; else pres="Non pointé";
+    if(rec.arrStatus==="absent") pres="Absent"+(rec.absMotif?" ("+absLabel(rec.absMotif)+")":"");
+    else if(rec.arrStatus&&rec.arrTime&&rec.depTime){ mins=Math.max(0,(toMin(rec.depTime)-toMin(rec.arrTime))-pause); pres=rec.arrTime+" → "+rec.depTime; } // le pointage réel prime sur le planning
+    else if(rec.arrStatus) pres="Sortie non pointée";
+    else if(!p.work) pres="Repos";
+    else pres="Non pointé";
     rows+=`<tr><td>${esc(d.toLocaleDateString("fr-FR",{weekday:"short",day:"2-digit",month:"short"}))}</td><td>${esc(pres)}</td><td style="text-align:right">${mins>0?fmtH(mins):"—"}</td></tr>`;
   }
   const st=rangeStats(e,startKey,endKey);
