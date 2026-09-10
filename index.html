@@ -860,7 +860,20 @@ async function loadAll(){
 /* ---- Écritures granulaires (en arrière-plan) ---- */
 function syncErr(tag,error){ if(error){ console.error(tag,error); const w=document.getElementById("syncWarn"); if(w) w.classList.add("show"); } }
 function pushEmp(id){ const e=employees.find(x=>x.id===id); if(!e) return; sb.from("employees").upsert({id:e.id,prenom:e.prenom||null,nom:e.nom||null,tel:e.tel||null,email:e.email||null,matricule:e.matricule||null,poste:e.poste||null,contrat:e.contrat||null,pause:(e.pause!=null?String(e.pause):null),archived:!!e.archived,template:templates[e.id]||defaultTemplate(),updated_at:new Date().toISOString()}).then(({error})=>syncErr("pushEmp",error)); }
-function pushRec(dk,id){ const en=recEntry(dk,id); sb.from("records").upsert({date:dk,emp_id:id,arr_status:en.arrStatus||null,arr_time:en.arrTime||null,retard_min:en.retardMin||0,abs_motif:en.absMotif||null,dep_status:en.depStatus||null,dep_time:en.depTime||null,hs_min:en.hsMin||0,nb_jobs:en.nbJobs||null}).then(({error})=>syncErr("pushRec",error)); }
+function pushRec(dk,id){ const en=recEntry(dk,id); sb.from("records").upsert({date:dk,emp_id:id,arr_status:en.arrStatus||null,arr_time:en.arrTime||null,retard_min:en.retardMin||0,abs_motif:en.absMotif||null,dep_status:en.depStatus||null,dep_time:en.depTime||null,hs_min:en.hsMin||0,nb_jobs:en.nbJobs||null}).then(({error})=>syncErr("pushRec",error)); syncSnapshot(dk,id); }
+/* Cohérence : si la journée est déjà signée, une correction met aussi à jour le rapport signé (la signature est conservée) */
+function syncSnapshot(dk,id){
+  const v=validated[dk]; if(!v||!v.snapshot||!v.snapshot.rows) return;
+  const e=employees.find(x=>x.id===id); if(!e) return;
+  const p=planned(dk,e.id), en=(records[dk]&&records[dk][id])||{};
+  const fresh={nom:empName(e),matricule:e.matricule||"",poste:e.poste||"finition",planArr:p.arr||"",planDep:p.dep||"",
+    arrStatus:en.arrStatus||"",arrTime:en.arrTime||"",retardMin:en.retardMin||0,absMotif:en.absMotif||"",
+    depStatus:en.depStatus||"",depTime:en.depTime||"",hsMin:en.hsMin||0,nbJobs:en.nbJobs||""};
+  const i=v.snapshot.rows.findIndex(r=>(e.matricule&&r.matricule===e.matricule)||r.nom===empName(e));
+  if(i>=0) v.snapshot.rows[i]=fresh; else if(p.work||en.arrStatus) v.snapshot.rows.push(fresh);
+  sb.from("validations").upsert({date:dk,signer:v.signer||null,signature:v.signature||null,snapshot:v.snapshot,validated_at:v.validated_at||new Date().toISOString()})
+    .then(({error})=>syncErr("syncSnapshot",error));
+}
 function pushOvr(dk,id){ const o=overrides[dk][id]; sb.from("overrides").upsert({date:dk,emp_id:id,work:!!o.work,arr:o.arr||null,dep:o.dep||null}).then(({error})=>syncErr("pushOvr",error)); }
 function delOvrRow(dk,id){ sb.from("overrides").delete().match({date:dk,emp_id:id}).then(({error})=>syncErr("delOvr",error)); }
 function delRecRow(dk,id){ sb.from("records").delete().match({date:dk,emp_id:id}).then(({error})=>syncErr("delRec",error)); }
