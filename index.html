@@ -1795,7 +1795,7 @@ function respOptions(selected){
 function dayLocked(dk){ return !!validated[dk]; }
 function buildSnapshot(dk){
   const rows=[];
-  actives().forEach(e=>{ const p=planned(dk,e.id); const en=(records[dk]&&records[dk][e.id])||{}; if(!p.work && !en.arrStatus) return;
+  employees.filter(e=>bornBy(e,dk)).forEach(e=>{ const p=planned(dk,e.id); const en=(records[dk]&&records[dk][e.id])||{}; if(!p.work && !en.arrStatus) return; // archivés inclus s'ils ont pointé ce jour-là
     rows.push({nom:empName(e),matricule:e.matricule||"",poste:e.poste||"finition",planArr:p.arr||"",planDep:p.dep||"",
       arrStatus:en.arrStatus||"",arrTime:en.arrTime||"",retardMin:en.retardMin||0,absMotif:en.absMotif||"",
       depStatus:en.depStatus||"",depTime:en.depTime||"",hsMin:en.hsMin||0,nbJobs:en.nbJobs||""}); });
