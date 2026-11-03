@@ -15,7 +15,18 @@ const slot = process.env.SLOT; // "matin" ou "soir"
 if (slot === "matin" && (hour !== 8 || day === 0)) { console.log(`skip (matin) h=${hour} d=${day}`); process.exit(0); }
 if (slot === "soir" && hour !== 19) { console.log(`skip (soir) h=${hour}`); process.exit(0); }
 
-const get = async t => (await fetch(`${SB_URL}/${t}?select=*`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } })).json();
+// Supabase limite à 1000 lignes par requête : pagination pour tout récupérer
+const get = async t => {
+  const out = [];
+  for (let page = 0; page < 50; page++) {
+    const r = await fetch(`${SB_URL}/${t}?select=*&limit=1000&offset=${page * 1000}`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
+    const data = await r.json();
+    out.push(...data);
+    if (data.length < 1000) break;
+  }
+  return out;
+};
 const [emps, recs, vals, sigs, ovrs, subs] = await Promise.all([
   get("employees"), get("records"), get("validations"), get("week_signatures"), get("overrides"), get("push_subs")]);
 if (!subs.length) { console.log("aucun appareil abonné"); process.exit(0); }

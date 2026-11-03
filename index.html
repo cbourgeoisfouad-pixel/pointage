@@ -835,28 +835,37 @@ const SB_KEY="sb_publishable_0Wb2TsVn-NJE4JllWS4nEQ_RtjLnM_Q";
 const sb=window.supabase.createClient(SB_URL, SB_KEY);
 
 /* ---- Chargement de toutes les données depuis le cloud ---- */
+/* Supabase limite chaque requête à 1000 lignes : on pagine pour TOUT récupérer. */
+async function fetchAll(table){
+  const out=[], PAGE=1000;
+  for(let i=0; i<50; i++){
+    const {data,error}=await sb.from(table).select("*").range(i*PAGE,(i+1)*PAGE-1);
+    if(error) throw error;
+    out.push(...(data||[]));
+    if(!data || data.length<PAGE) return out;
+  }
+  return out;
+}
 async function loadAll(){
-  employees=[]; templates={}; overrides={}; records={}; validated={}; weekSigs={}; responsables=[]; conges=[]; congesTableOk=true;
-  const [emp,ovr,rec,val,wsig,resp,cng]=await Promise.all([
-    sb.from("employees").select("*"),
-    sb.from("overrides").select("*"),
-    sb.from("records").select("*"),
-    sb.from("validations").select("*"),
-    sb.from("week_signatures").select("*"),
-    sb.from("responsables").select("*"),
-    sb.from("conges").select("*")
+  // On télécharge TOUT d'abord ; les données en mémoire ne sont remplacées qu'en cas de succès complet.
+  let cngRows=null, cngOk=true;
+  const [emp,ovr,rec,val,wsig,resp]=await Promise.all([
+    fetchAll("employees"), fetchAll("overrides"), fetchAll("records"),
+    fetchAll("validations"), fetchAll("week_signatures"), fetchAll("responsables")
   ]);
-  if(cng.error){ congesTableOk=false; } else { conges=(cng.data||[]).map(r=>({id:r.id,empId:r.emp_id,start:r.start_date,end:r.end_date,motif:r.motif||"conge"})); }
-  responsables=(resp.data||[]).slice().sort((a,b)=>(a.created_at||"").localeCompare(b.created_at||""));
-  (val.data||[]).forEach(r=>{ validated[r.date]={signer:r.signer||"",signature:r.signature||"",snapshot:r.snapshot||null,validated_at:r.validated_at}; });
-  (wsig.data||[]).forEach(r=>{ (weekSigs[r.week]=weekSigs[r.week]||{})[r.emp_id]={signature:r.signature||"",signed_at:r.signed_at,responsable:r.responsable||"",respSignature:r.resp_signature||""}; });
-  (emp.data||[]).forEach(r=>{
+  try{ cngRows=await fetchAll("conges"); }catch(e){ cngOk=false; }
+  employees=[]; templates={}; overrides={}; records={}; validated={}; weekSigs={}; responsables=[]; conges=[]; congesTableOk=cngOk;
+  if(cngOk) conges=(cngRows||[]).map(r=>({id:r.id,empId:r.emp_id,start:r.start_date,end:r.end_date,motif:r.motif||"conge"}));
+  responsables=resp.slice().sort((a,b)=>(a.created_at||"").localeCompare(b.created_at||""));
+  val.forEach(r=>{ validated[r.date]={signer:r.signer||"",signature:r.signature||"",snapshot:r.snapshot||null,validated_at:r.validated_at}; });
+  wsig.forEach(r=>{ (weekSigs[r.week]=weekSigs[r.week]||{})[r.emp_id]={signature:r.signature||"",signed_at:r.signed_at,responsable:r.responsable||"",respSignature:r.resp_signature||""}; });
+  emp.forEach(r=>{
     templates[r.id]=r.template||defaultTemplate();
     employees.push({id:r.id,prenom:r.prenom||"",nom:r.nom||"",tel:r.tel||"",email:r.email||"",matricule:r.matricule||"",poste:r.poste||"finition",contrat:r.contrat||"",pause:(r.pause!=null?r.pause:"45"),archived:!!r.archived});
     ensureTemplate(r.id);
   });
-  (ovr.data||[]).forEach(r=>{ (overrides[r.date]=overrides[r.date]||{})[r.emp_id]={work:!!r.work,arr:r.arr||"",dep:r.dep||""}; });
-  (rec.data||[]).forEach(r=>{ (records[r.date]=records[r.date]||{})[r.emp_id]={arrStatus:r.arr_status||"",arrTime:r.arr_time||"",retardMin:r.retard_min||0,absMotif:r.abs_motif||"",depStatus:r.dep_status||"",depTime:r.dep_time||"",hsMin:r.hs_min||0,nbJobs:r.nb_jobs||""}; });
+  ovr.forEach(r=>{ (overrides[r.date]=overrides[r.date]||{})[r.emp_id]={work:!!r.work,arr:r.arr||"",dep:r.dep||""}; });
+  rec.forEach(r=>{ (records[r.date]=records[r.date]||{})[r.emp_id]={arrStatus:r.arr_status||"",arrTime:r.arr_time||"",retardMin:r.retard_min||0,absMotif:r.abs_motif||"",depStatus:r.dep_status||"",depTime:r.dep_time||"",hsMin:r.hs_min||0,nbJobs:r.nb_jobs||""}; });
 }
 
 /* ---- Écritures granulaires (en arrière-plan) ---- */
@@ -1738,12 +1747,30 @@ async function enterApp(){
   // Démarrage instantané : affiche le cache local, puis synchronise en arrière-plan
   if(applyCache()){
     goPage(target);
-    loadAll().then(()=>{ saveCache(); maybeOfferImport(); goPage(currentPage||target); }).catch(e=>console.error("sync",e));
+    resync("boot");
   } else {
     await loadAll(); saveCache();
     maybeOfferImport();
     goPage(target);
   }
+  // L'app revient au premier plan (iPhone) → on resynchronise systématiquement
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") resync("retour"); });
+  window.addEventListener("online",()=>resync("réseau"));
+}
+let _syncing=false, _lastSync=0;
+async function resync(why){
+  if(_syncing || Date.now()-_lastSync<4000) return; // anti-rafale
+  _syncing=true;
+  for(let tent=1; tent<=3; tent++){
+    try{
+      await loadAll(); _lastSync=Date.now(); saveCache();
+      goPage(currentPage||1);               // ré-affiche la page courante avec les données fraîches
+      const w=document.getElementById("syncWarn"); if(w) w.classList.remove("show");
+      _syncing=false; return;
+    }catch(e){ console.error("resync("+why+") tentative "+tent, e); await new Promise(r=>setTimeout(r,1500*tent)); }
+  }
+  _syncing=false;
+  const w=document.getElementById("syncWarn"); if(w) w.classList.add("show"); // avertir : données locales possiblement périmées
 }
 function saveCache(){
   try{ localStorage.setItem("pointage_cache_v1", JSON.stringify({employees,templates,overrides,records,validated,weekSigs,responsables,conges})); }catch(e){}
