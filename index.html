@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://iicxvdjhlwjwlbacjqgk.supabase.co" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <title>Pointage — US Car Wash</title>
+<meta name="app-build" content="BUILD_2026-11-09_1">
 <style>
   :root{
     --bg:#f3f4f6; --card:#fff; --ink:#111827; --muted:#6b7280; --line:#e5e7eb;
@@ -496,6 +497,8 @@
   .sync-badge.ok{background:#dcfce7;color:#15803d;}
   .sync-badge.busy{background:#fef3c7;color:#92400e;}
   .sync-badge.err{background:#fee2e2;color:#b91c1c;}
+  .upd-banner{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:960;background:#1d4ed8;color:#fff;font-size:13px;padding:8px 14px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25);display:flex;gap:10px;align-items:center;}
+  .upd-banner button{background:#fff;color:#1d4ed8;border:none;border-radius:999px;padding:4px 12px;font-weight:800;font-size:12px;cursor:pointer;}
   .es-table .es-num{text-align:right;white-space:nowrap;font-weight:700;}
   .es-split{margin-top:14px;border-top:2px solid var(--ink);padding-top:8px;}
   .es-split .ln{display:flex;justify-content:space-between;padding:4px 0;font-size:14px;}
@@ -894,6 +897,23 @@ function updateSyncBadge(){
 }
 window.addEventListener("online",()=>updateSyncBadge());
 window.addEventListener("offline",()=>updateSyncBadge());
+
+/* ---- Anti-cache : détecte qu'une nouvelle version du site est en ligne et force la mise à jour ---- */
+async function checkNewVersion(){
+  try{
+    const html=await (await fetch(location.pathname+"?nocache="+Date.now(),{cache:"no-store"})).text();
+    const m=html.match(/app-build" content="([^"]+)"/);
+    const mine=(document.querySelector('meta[name="app-build"]')||{}).content||"";
+    if(m && mine && m[1]!==mine){
+      let b=document.getElementById("updBanner");
+      if(!b){
+        b=document.createElement("div"); b.id="updBanner"; b.className="upd-banner";
+        b.innerHTML=`🔄 <b>Nouvelle version disponible</b><button onclick="location.reload()">Mettre à jour</button>`;
+        document.body.appendChild(b);
+      }
+    }
+  }catch(e){}
+}
 
 /* ---- Écritures granulaires (en arrière-plan) ---- */
 function syncErr(tag,error){ if(error){ console.error(tag,error); const w=document.getElementById("syncWarn"); if(w) w.classList.add("show"); } }
@@ -1790,7 +1810,7 @@ async function resync(why){
   _syncing=true;
   for(let tent=1; tent<=3; tent++){
     try{
-      await loadAll(); _lastSync=Date.now(); saveCache();
+      await loadAll(); _lastSync=Date.now(); saveCache(); checkNewVersion();
       goPage(currentPage||1);               // ré-affiche la page courante avec les données fraîches
       const w=document.getElementById("syncWarn"); if(w) w.classList.remove("show");
       _syncing=false; return;
