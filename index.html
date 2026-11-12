@@ -249,6 +249,7 @@
   .wk td .cell.ovr{border-color:var(--blue);background:var(--blue-bg);}
   .wk td .cell.abs-ec{color:#6d28d9;background:#f5f3ff;border-color:#ddd6fe;font-weight:700;font-size:11px;}
   .wk td .cell.abs-cg{color:#b91c1c;background:#fdf2f2;border-color:#fecaca;font-weight:700;font-size:11px;}
+  .wk td .cell.abs-fer{color:#0f766e;background:#f0fdfa;border-color:#99f6e4;font-weight:700;font-size:11px;}
   .wk td .cell.ovr .a,.wk td .cell.ovr span{color:var(--blue);}
 
   /* ===================== MENU MODAL ===================== */
@@ -401,6 +402,7 @@
   .wr-detail b{color:var(--ink);}
   .wr-repos,.wr-none{color:var(--muted);}
   .wr-abs{color:var(--red);font-weight:700;}
+  .wr-fer{color:#0f766e;font-weight:700;}
   .wr-partial{color:var(--amber);}
   .wr-total{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:2px solid var(--ink);font-size:16px;font-weight:800;}
   .wr-total b{color:var(--green);}
@@ -1221,7 +1223,7 @@ const RETARD_OPTS=(()=>{ const a=[]; for(let m=15;m<=300;m+=15) a.push([m,minLab
 function retardLabel(min){ const o=RETARD_OPTS.find(x=>x[0]===min); return o?o[1]:minLabel(min); }
 const HSUP_OPTS=[[15,"15 min"],[30,"30 min"],[45,"45 min"],[60,"1 heure"],[75,"1 h 15"],[90,"1 h 30"],[105,"1 h 45"],[120,"2 heures"]];
 function hsupLabel(min){ const o=HSUP_OPTS.find(x=>x[0]===min); return o?o[1]:(min+" min"); }
-const ABS_OPTS=[["repos","Repos"],["conge","Congé"],["maladie","Arrêt maladie"],["formation","École (formation)"],["injustifiee","Absence injustifiée"]];
+const ABS_OPTS=[["repos","Repos"],["conge","Congé"],["maladie","Arrêt maladie"],["formation","École (formation)"],["ferie","Jour férié (payé)"],["injustifiee","Absence injustifiée"]];
 function absLabel(v){ const o=ABS_OPTS.find(x=>x[0]===v); return o?o[1]:""; }
 
 function cardInner(dk,e){
@@ -1698,6 +1700,7 @@ function renderWeek(){
       if(en.arrStatus==="absent"&&en.absMotif==="formation") return `<td><div class="cell abs-ec" onclick="openSchedule('${e.id}','${dk}')">🎓<br>École</div></td>`;
       if(en.arrStatus==="absent"&&en.absMotif==="conge") return `<td><div class="cell abs-cg" onclick="openSchedule('${e.id}','${dk}')">🏖️<br>Congé</div></td>`;
       if(en.arrStatus==="absent"&&en.absMotif==="maladie") return `<td><div class="cell abs-cg" onclick="openSchedule('${e.id}','${dk}')">🤒<br>Maladie</div></td>`;
+      if(en.arrStatus==="absent"&&en.absMotif==="ferie") return `<td><div class="cell abs-fer" onclick="openSchedule('${e.id}','${dk}')">📅<br>Férié</div></td>`;
       if(!p.work) return `<td><div class="cell repos ${ovr?"ovr":""}" onclick="openSchedule('${e.id}','${dk}')">Repos</div></td>`;
       return `<td><div class="cell ${ovr?"ovr":""}" onclick="openSchedule('${e.id}','${dk}')"><span class="a">${p.arr||"—"}</span><span>${p.dep||"—"}</span></div></td>`;
     }).join("");
@@ -1939,12 +1942,19 @@ function repWeek(d){ repWeekRef.setDate(repWeekRef.getDate()+d*7); renderWeekSig
 function weekKeyOf(){ return key(mondayOf(repWeekRef)); }
 function repEmpStep(d){ const sel=document.getElementById("repEmp"); const n=sel.options.length; if(!n) return; let i=sel.selectedIndex+d; if(i<0)i=n-1; if(i>=n)i=0; sel.selectedIndex=i; renderWeekRep(); }
 function fmtH(min){ if(min<=0) return "0 h 00"; const h=Math.floor(min/60), m=min%60; return h+" h "+String(m).padStart(2,"0"); }
+/* Jour férié chômé mais payé : les heures PRÉVUES au planning comptent dans les totaux */
+function ferieMins(dk,e){
+  const p=planned(dk,e.id); if(!p.work) return 0;
+  const a=toMin(p.arr), b=toMin(p.dep); if(a==null||b==null||b<=a) return 0;
+  return Math.max(0,(b-a)-(parseInt(empPause(e),10)||0));
+}
 function weekRepRows(e,ws){
   ws=ws||mondayOf(repWeekRef); const pause=parseInt(empPause(e),10)||0; let total=0; const out=[];
   for(let i=0;i<7;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); if(d.getDay()===0) continue; /* pas de dimanche : entreprise fermée */ const dk=key(d);
     const p=planned(dk,e.id), en=(records[dk]&&records[dk][e.id])||{}; let detail, txt, presence, mins=0; const hs=en.hsMin||0;
     // Le pointage RÉEL prime sur le planning : un salarié pointé présent un jour de repos prévu compte quand même.
-    if(en.arrStatus==="absent"){ const m="Absent"+(en.absMotif?" ("+absLabel(en.absMotif)+")":""); detail=`<span class="wr-abs">${m}</span>`; txt=m; presence=m; }
+    if(en.arrStatus==="absent" && en.absMotif==="ferie"){ mins=ferieMins(dk,e); total+=mins; const m="Férié (payé)"; detail=`<span class="wr-fer">Férié — payé${mins?" <b>"+fmtH(mins)+"</b>":""}</span>`; txt=m; presence=m; }
+    else if(en.arrStatus==="absent"){ const m="Absent"+(en.absMotif?" ("+absLabel(en.absMotif)+")":""); detail=`<span class="wr-abs">${m}</span>`; txt=m; presence=m; }
     else if(en.arrStatus && en.arrTime && en.depTime){ mins=Math.max(0,(toMin(en.depTime)-toMin(en.arrTime))-pause); total+=mins; detail=`${en.arrTime} → ${en.depTime} <b>${fmtH(mins)}</b>`; txt=`${en.arrTime} → ${en.depTime} (${fmtH(mins)})`; presence=`${en.arrTime} → ${en.depTime}`; }
     else if(en.arrStatus){ detail=`<span class="wr-partial">Arrivé ${en.arrTime||p.arr||""}, sortie non pointée</span>`; txt="Sortie non pointée"; presence="Sortie non pointée"; }
     else if(!p.work){ detail=`<span class="wr-repos">Repos</span>`; txt="Repos"; presence="Repos"; }
@@ -1972,6 +1982,9 @@ function rangeStats(e,startKey,endKey){
     if(rec.arrStatus && rec.arrStatus!=="absent" && rec.arrTime && rec.depTime){
       const mins=Math.max(0,(toMin(rec.depTime)-toMin(rec.arrTime))-pause);
       totalWorked+=mins; const wk=key(mondayOf(d)); weekTotals[wk]=(weekTotals[wk]||0)+mins;
+    } else if(rec.arrStatus==="absent" && rec.absMotif==="ferie"){
+      const mins=ferieMins(dk,e); // férié chômé payé : heures prévues comptées
+      if(mins){ totalWorked+=mins; const wk=key(mondayOf(d)); weekTotals[wk]=(weekTotals[wk]||0)+mins; }
     }
   }
   let sup=0; if(hasContract) Object.values(weekTotals).forEach(t=>{ sup+=Math.max(0,t-cm); });
@@ -2318,7 +2331,7 @@ function printWeekRecap(w){
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Récap heures sup — ${esc(period)}</title>
     <style>body{font-family:Arial,sans-serif;color:#111;padding:30px;}h1{font-size:20px;margin:0 0 2px;}h2{font-size:17px;margin:0 0 2px;}.sub{color:#555;margin-bottom:16px;}
     table{width:100%;border-collapse:collapse;font-size:14px;}th,td{border:1px solid #bbb;padding:8px 10px;text-align:left;}th{background:#eee;}tfoot td{font-weight:bold;background:#f6f6f6;}
-    .hsrow td{color:#b45309;}.wr-repos,.wr-none{color:#999;}.wr-abs{color:#b91c1c;}.wr-partial{color:#b45309;}
+    .hsrow td{color:#b45309;}.wr-repos,.wr-none{color:#999;}.wr-abs{color:#b91c1c;}.wr-partial{color:#b45309;}.wr-fer{color:#0f766e;font-weight:bold;}
     .emp-page{page-break-before:always;padding-top:6px;}.note{color:#888;font-size:11px;margin-top:10px;}
     .sigline{margin-top:14px;font-size:13px;color:#333;display:flex;align-items:center;gap:10px;}</style></head>
     <body><h1>Récapitulatif des heures supplémentaires — US CAR WASH</h1><div class="sub">Semaine ${esc(period)}</div>
@@ -2394,6 +2407,7 @@ function printWeekPlanningPDF(base){
       if(en.arrStatus==="absent"&&en.absMotif==="conge") return `<td class="cg">Congé</td>`;
       if(en.arrStatus==="absent"&&en.absMotif==="maladie") return `<td class="cg">Maladie</td>`;
       if(en.arrStatus==="absent"&&en.absMotif==="formation") return `<td class="ec">🎓 École</td>`;
+      if(en.arrStatus==="absent"&&en.absMotif==="ferie") return `<td class="fer">📅 Férié</td>`;
       if(!p.work) return `<td class="rp">Repos</td>`;
       counts[i]++; catCounts[i]++;
       let clean=cleaners[dk]===e.id?`<div class="cl">🧹 9h00-9h15</div>`:"";
@@ -2412,6 +2426,7 @@ function printWeekPlanningPDF(base){
     td.nm{text-align:left;font-weight:bold;white-space:nowrap;}
     td.rp{color:#1d4ed8;background:#eff6ff;font-weight:bold;}td.cg{color:#b91c1c;background:#fdf2f2;font-weight:bold;}
     td.ec{color:#6d28d9;background:#f5f3ff;font-weight:bold;}
+    td.fer{color:#0f766e;background:#f0fdfa;font-weight:bold;}
     tr.grp td{background:#1f2937;color:#fff;font-weight:bold;text-align:left;text-transform:uppercase;letter-spacing:.5px;font-size:11px;padding:5px 8px;}
     tr.sub td{background:#e5e7eb;font-weight:bold;font-size:11px;}
     .cl{margin-top:3px;font-size:10px;font-weight:bold;color:#92400e;background:#fef3c7;border-radius:6px;padding:1px 4px;display:inline-block;}
@@ -2466,7 +2481,8 @@ function printCustomReportAll(startKey,endKey){
       const dk=key(d), en=(records[dk]&&records[dk][e.id])||{};
       // même règle que rangeStats : le pointage réel prime sur le planning
       if(en.arrStatus && en.arrStatus!=="absent" && en.arrTime && en.depTime)
-        tot+=Math.max(0,(toMin(en.depTime)-toMin(en.arrTime))-pause); }
+        tot+=Math.max(0,(toMin(en.depTime)-toMin(en.arrTime))-pause);
+      else if(en.arrStatus==="absent" && en.absMotif==="ferie") tot+=ferieMins(dk,e); }
     return tot; };
   // Page 1 : récap global — ligne salarié + une sous-ligne par semaine
   let rows="", gTot=0, gSup=0;
@@ -2493,6 +2509,7 @@ function printCustomReportAll(startKey,endKey){
       const p=planned(dk,e.id), en=(records[dk]&&records[dk][e.id])||{};
       let cell, worked="—", mins=0;
       if(!p.work && !en.arrStatus){ cell=`<span class="wr-repos">Repos</span>`; }
+      else if(en.arrStatus==="absent"&&en.absMotif==="ferie"){ mins=ferieMins(dk,e); weekTot+=mins; cell=`<span class="wr-fer">Férié — payé</span>`; worked=mins?fmtH(mins):"—"; }
       else if(en.arrStatus==="absent"){ cell=`<span class="wr-abs">Absent${en.absMotif?" ("+absLabel(en.absMotif)+")":""}</span>`; }
       else if(en.arrStatus && en.arrTime && en.depTime){ mins=Math.max(0,(toMin(en.depTime)-toMin(en.arrTime))-pause); weekTot+=mins; cell=`${en.arrTime} → ${en.depTime}`; worked=fmtH(mins); }
       else if(en.arrStatus){ cell=`<span class="wr-partial">Arrivé ${en.arrTime||""}, sortie non pointée</span>`; }
@@ -2514,7 +2531,7 @@ function printCustomReportAll(startKey,endKey){
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Rapport — ${esc(period)}</title>
     <style>body{font-family:Arial,sans-serif;color:#111;padding:30px;}h1{font-size:20px;margin:0 0 2px;}h2{font-size:17px;margin:0 0 2px;}.sub{color:#555;margin-bottom:16px;}
     table{width:100%;border-collapse:collapse;font-size:13px;}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left;}th{background:#eee;}tfoot td{font-weight:bold;background:#f6f6f6;}
-    .hsrow td{color:#b45309;}.wr-repos,.wr-none{color:#999;}.wr-abs{color:#b91c1c;}.wr-partial{color:#b45309;}
+    .hsrow td{color:#b45309;}.wr-repos,.wr-none{color:#999;}.wr-abs{color:#b91c1c;}.wr-partial{color:#b45309;}.wr-fer{color:#0f766e;font-weight:bold;}
     tr.wksub td{background:#eef2f7;font-weight:bold;font-size:12px;}.hs{color:#b45309;font-weight:normal;}
     tr.emp td{font-weight:bold;background:#f9fafb;}
     tr.wkline td{font-size:12px;color:#444;border-top:none;padding:4px 9px;}
@@ -2535,7 +2552,8 @@ function printCustomReport(empId,startKey,endKey){
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   let rows="", n=0;
   for(let d=new Date(start); d<=end && n<400; d.setDate(d.getDate()+1), n++){ if(d.getDay()===0) continue; /* pas de dimanche */ const dk=key(d); const p=planned(dk,e.id), rec=(records[dk]&&records[dk][e.id])||{}; let pres, mins=0;
-    if(rec.arrStatus==="absent") pres="Absent"+(rec.absMotif?" ("+absLabel(rec.absMotif)+")":"");
+    if(rec.arrStatus==="absent"&&rec.absMotif==="ferie"){ mins=ferieMins(dk,e); pres="Férié — payé"; }
+    else if(rec.arrStatus==="absent") pres="Absent"+(rec.absMotif?" ("+absLabel(rec.absMotif)+")":"");
     else if(rec.arrStatus&&rec.arrTime&&rec.depTime){ mins=Math.max(0,(toMin(rec.depTime)-toMin(rec.arrTime))-pause); pres=rec.arrTime+" → "+rec.depTime; } // le pointage réel prime sur le planning
     else if(rec.arrStatus) pres="Sortie non pointée";
     else if(!p.work) pres="Repos";
