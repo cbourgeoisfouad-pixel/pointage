@@ -17,6 +17,10 @@ self.addEventListener("push", e => {
 self.addEventListener("notificationclick", e => {
   e.notification.close();
   const url = (e.notification.data && e.notification.data.url) || "/?goto=afaire";
+  if (/^https?:\/\//.test(url) && !url.startsWith(self.location.origin)) {
+    e.waitUntil(clients.openWindow(url)); // lien externe (ex. WhatsApp) : nouvelle fenêtre, sans toucher l'app
+    return;
+  }
   e.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
     for (const c of list) { if ("focus" in c) { c.navigate(url); return c.focus(); } }
     return clients.openWindow(url);

@@ -111,8 +111,19 @@ if (slot === "menage") {
   if (!mName && !eName) { console.log("personne d'éligible aujourd'hui"); process.exit(0); }
   let body = mName ? `9h00-9h15 : ${mName}` : "";
   if (eName) body += (body ? "\n" : "") + `17h45-18h00 : ${eName}`;
+  // Un tap sur la notification → WhatsApp s'ouvre sur le salarié, message pré-écrit
+  const waIntl = t => { let n = String(t || "").replace(/[^\d+]/g, ""); if (n.startsWith("+")) n = n.slice(1); else if (n.startsWith("00")) n = n.slice(2); else if (n.startsWith("0")) n = "33" + n.slice(1); return n; };
+  const target = emps.find(x => x.id === (morningId || eveId));
+  let url = "/";
+  if (target && target.tel) {
+    const prenom = (target.prenom || "").trim();
+    const creneau = morningId ? "de 9h00 à 9h15" : "de 17h45 à 18h00";
+    const msg = `🧹 Salut ${prenom}, c'est ton tour aujourd'hui : nettoyage de l'espace de pause et des toilettes ${creneau}. Merci !`;
+    url = `https://wa.me/${waIntl(target.tel)}?text=${encodeURIComponent(msg)}`;
+  }
+  body += "\n👆 Touche pour lui envoyer le WhatsApp";
   webpush.setVapidDetails("mailto:cbourgeoisfouad@gmail.com", VAPID_PUBLIC, VAPID_PRIVATE);
-  const payload = JSON.stringify({ title: "🧹 Ménage du jour", body, url: "/" });
+  const payload = JSON.stringify({ title: "🧹 Ménage du jour", body, url });
   let ok = 0;
   for (const s of subs) {
     try { await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload); ok++; }
