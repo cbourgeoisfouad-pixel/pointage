@@ -14,6 +14,7 @@ const hour = paris.getHours(), day = paris.getDay(); // 0 = dimanche
 const slot = process.env.SLOT; // "matin" ou "soir"
 if (slot === "matin" && (hour !== 8 || day === 0)) { console.log(`skip (matin) h=${hour} d=${day}`); process.exit(0); }
 if (slot === "soir" && hour !== 19) { console.log(`skip (soir) h=${hour}`); process.exit(0); }
+if (slot === "menage" && (hour !== 8 || day === 0)) { console.log(`skip (menage) h=${hour} d=${day}`); process.exit(0); }
 
 // Supabase limite à 1000 lignes par requête : pagination pour tout récupérer
 const get = async t => {
@@ -53,6 +54,73 @@ const dayDone = r => { if (!r) return false;
   if (r.dep_status === "parti" || r.dep_status === "avance") return true;
   if (r.dep_status === "heuresup") return (r.hs_min || 0) > 0;
   return false; };
+
+/* ---- Créneau "menage" (8h45) : qui fait le nettoyage aujourd'hui ----
+   Réplique EXACTE de la rotation du planning (printWeekPlanningPDF). */
+if (slot === "menage") {
+  const toMin = t => { if (!t || !t.includes(":")) return null; const [a, b] = t.split(":").map(Number); return a * 60 + b; };
+  const posteOf = e => e.poste === "laveur" ? "finition" : (e.poste || "finition");
+  const roster = actives.filter(e => ["aspirateur", "finition"].includes(posteOf(e)));
+  const cmpMat = (a, b) => String(a.matricule || "").localeCompare(String(b.matricule || ""), "fr", { numeric: true });
+  const plannedFull = (dk, e) => {
+    const t = e.template || {};
+    const monday = key(mondayOf(new Date(dk + "T12:00:00")));
+    if (t.since && monday < t.since) return { work: false };
+    if (t.until && dk > t.until) return { work: false };
+    const o = ovrMap[dk] && ovrMap[dk][e.id];
+    if (o) return { work: !!o.work, arr: o.arr || "", dep: o.dep || "" };
+    const wd = new Date(dk + "T12:00:00").getDay();
+    const x = t[wd]; return x ? { work: !!x.work, arr: x.arr || "", dep: x.dep || "" } : { work: false };
+  };
+  const eligMorning = dk => roster.filter(e => {
+    const p = plannedFull(dk, e), en = (recMap[dk] && recMap[dk][e.id]) || {};
+    return p.work && p.arr === "09:00" && !(en.arr_status === "absent");
+  });
+  const eligEve = dk => roster.filter(e => {
+    const p = plannedFull(dk, e), en = (recMap[dk] && recMap[dk][e.id]) || {};
+    return p.work && p.dep && toMin(p.dep) !== null && toMin(p.dep) >= toMin("18:00") && !(en.arr_status === "absent");
+  });
+  const starts9 = e => { const t = e.template || {}; for (let d = 1; d <= 6; d++) { const x = t[d]; if (x && x.work && x.arr === "09:00") return true; } return false; };
+  const EPOCH = new Date("2026-09-09T12:00:00");
+  const target = new Date(paris); target.setHours(12, 0, 0, 0);
+  const targetKey = key(target);
+  const nT = {}, lT = {}, nE = {}, lE = {};
+  let morningId = null, eveId = null, n = 0;
+  for (let d = new Date(EPOCH); key(d) <= targetKey && n < 800; d.setDate(d.getDate() + 1), n++) {
+    if (d.getDay() === 0) continue;
+    const dk = key(d);
+    const em = eligMorning(dk);
+    let mId = null;
+    if (em.length) {
+      em.sort((a, b) => (nT[a.id] || 0) - (nT[b.id] || 0) || (lT[a.id] || 0) - (lT[b.id] || 0) || cmpMat(a, b));
+      const c = em[0]; nT[c.id] = (nT[c.id] || 0) + 1; lT[c.id] = n + 1; mId = c.id;
+    }
+    if (d.getDay() === 6) {
+      let ev = eligEve(dk).filter(e => e.id !== mId);
+      if (!ev.length) ev = eligEve(dk);
+      if (ev.length) {
+        ev.sort((a, b) => (starts9(a) ? 1 : 0) - (starts9(b) ? 1 : 0) || (nE[a.id] || 0) - (nE[b.id] || 0) || (lE[a.id] || 0) - (lE[b.id] || 0) || cmpMat(a, b));
+        const c = ev[0]; nE[c.id] = (nE[c.id] || 0) + 1; lE[c.id] = n + 1;
+        if (dk === targetKey) eveId = c.id;
+      }
+    }
+    if (dk === targetKey) morningId = mId;
+  }
+  const nameOf = id => { const e = emps.find(x => x.id === id); return e ? `${e.prenom} ${e.nom}`.trim() : null; };
+  const mName = morningId && nameOf(morningId), eName = eveId && nameOf(eveId);
+  if (!mName && !eName) { console.log("personne d'éligible aujourd'hui"); process.exit(0); }
+  let body = mName ? `9h00-9h15 : ${mName}` : "";
+  if (eName) body += (body ? "\n" : "") + `17h45-18h00 : ${eName}`;
+  webpush.setVapidDetails("mailto:cbourgeoisfouad@gmail.com", VAPID_PUBLIC, VAPID_PRIVATE);
+  const payload = JSON.stringify({ title: "🧹 Ménage du jour", body, url: "/" });
+  let ok = 0;
+  for (const s of subs) {
+    try { await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload); ok++; }
+    catch (err) { console.error("envoi KO", err.statusCode || err.message); }
+  }
+  console.log(`menage → envoyé à ${ok}/${subs.length} : ${body.replace("\n", " · ")}`);
+  process.exit(0);
+}
 
 const today = new Date(paris); today.setHours(12, 0, 0, 0);
 const curWeek = key(mondayOf(today));

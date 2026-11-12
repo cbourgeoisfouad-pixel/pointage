@@ -6,6 +6,8 @@ on:
   schedule:
     - cron: "30 6 * * 1-6"   # 8h30 Paris (été)
     - cron: "30 7 * * 1-6"   # 8h30 Paris (hiver)
+    - cron: "45 6 * * 1-6"   # 8h45 Paris (été) — ménage du jour
+    - cron: "45 7 * * 1-6"   # 8h45 Paris (hiver) — ménage du jour
     - cron: "30 17 * * *"    # 19h30 Paris (été)
     - cron: "30 18 * * *"    # 19h30 Paris (hiver)
   workflow_dispatch:
@@ -28,8 +30,10 @@ jobs:
           if [ -n "${{ github.event.inputs.slot }}" ]; then
             echo "slot=${{ github.event.inputs.slot }}" >> "$GITHUB_OUTPUT"
           else
-            H=$(TZ=Europe/Paris date +%H)
-            if [ "$H" -lt 12 ]; then echo "slot=matin" >> "$GITHUB_OUTPUT"; else echo "slot=soir" >> "$GITHUB_OUTPUT"; fi
+            H=$(TZ=Europe/Paris date +%H); M=$(TZ=Europe/Paris date +%M)
+            if [ "$H" -ge 12 ]; then echo "slot=soir" >> "$GITHUB_OUTPUT"
+            elif [ "$M" -ge 40 ]; then echo "slot=menage" >> "$GITHUB_OUTPUT"
+            else echo "slot=matin" >> "$GITHUB_OUTPUT"; fi
           fi
       - name: Envoyer les rappels
         env:
