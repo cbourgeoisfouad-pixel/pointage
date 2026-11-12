@@ -14,7 +14,7 @@ const hour = paris.getHours(), day = paris.getDay(); // 0 = dimanche
 const slot = process.env.SLOT; // "matin" ou "soir"
 if (slot === "matin" && (hour !== 8 || day === 0)) { console.log(`skip (matin) h=${hour} d=${day}`); process.exit(0); }
 if (slot === "soir" && hour !== 19) { console.log(`skip (soir) h=${hour}`); process.exit(0); }
-if (slot === "menage" && (hour !== 8 || day === 0)) { console.log(`skip (menage) h=${hour} d=${day}`); process.exit(0); }
+if (slot === "menage" && (hour !== 8 || day === 0) && process.env.FORCE !== "1") { console.log(`skip (menage) h=${hour} d=${day}`); process.exit(0); }
 
 // Supabase limite à 1000 lignes par requête : pagination pour tout récupérer
 const get = async t => {
