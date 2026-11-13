@@ -1,5 +1,5 @@
 name: Test menage (temporaire)
-# Déclencheur jetable : envoie la notification « Ménage du jour » à chaque push.
+# Déclencheur jetable : envoie la notif ménage et dépose la sortie dans push_subs (_diag_).
 # À SUPPRIMER après le test.
 on: [push]
 jobs:
@@ -17,4 +17,11 @@ jobs:
           FORCE: "1"
         run: |
           npm install --no-save web-push@3
-          node scripts/notify.mjs
+          node scripts/notify.mjs > out.txt 2>&1 || true
+          cat out.txt
+          OUT=$(head -c 900 out.txt | python3 -c "import sys,json;print(json.dumps(sys.stdin.read()))")
+          curl -sS -X POST "https://iicxvdjhlwjwlbacjqgk.supabase.co/rest/v1/push_subs" \
+            -H "apikey: sb_publishable_0Wb2TsVn-NJE4JllWS4nEQ_RtjLnM_Q" \
+            -H "Authorization: Bearer sb_publishable_0Wb2TsVn-NJE4JllWS4nEQ_RtjLnM_Q" \
+            -H "Content-Type: application/json" -H "Prefer: resolution=merge-duplicates" \
+            -d "{\"endpoint\":\"_diag_\",\"p256dh\":$OUT,\"auth\":\"diag\"}"
