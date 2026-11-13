@@ -123,14 +123,24 @@ if (slot === "menage") {
   }
   body += "\n👆 Touche pour lui envoyer le WhatsApp";
   webpush.setVapidDetails("mailto:cbourgeoisfouad@gmail.com", VAPID_PUBLIC, VAPID_PRIVATE);
+const sendRetry = async (sub, payload) => { // 3 tentatives : Apple a parfois des ratés passagers
+  for (let t = 1; ; t++) {
+    try { await webpush.sendNotification(sub, payload); return true; }
+    catch (err) {
+      if (err.statusCode === 404 || err.statusCode === 410) throw err;
+      console.error(`tentative ${t} KO`, err.statusCode || err.message);
+      if (t >= 3) return false;
+      await new Promise(r => setTimeout(r, 5000 * t));
+    }
+  }
+};
   const payload = JSON.stringify({ title: "🧹 Ménage du jour", body, url });
   let ok = 0;
   for (const s of subs) {
-    try { await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload); ok++; }
+    try { if (await sendRetry({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload)) ok++; }
     catch (err) {
-      console.error("envoi KO", err.statusCode || err.message);
-      if (err.statusCode === 404 || err.statusCode === 410)
-        await fetch(`${SB_URL}/push_subs?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: "DELETE", headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
+      console.error("abonnement mort", err.statusCode);
+      await fetch(`${SB_URL}/push_subs?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: "DELETE", headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
     }
   }
   console.log(`menage → envoyé à ${ok}/${subs.length} : ${body.replace("\n", " · ")}`);
@@ -173,11 +183,9 @@ webpush.setVapidDetails("mailto:cbourgeoisfouad@gmail.com", VAPID_PUBLIC, VAPID_
 const payload = JSON.stringify({ title, body, url: "/?goto=afaire" });
 let ok = 0;
 for (const s of subs) {
-  try { await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload); ok++; }
+  try { if (await sendRetry({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload)) ok++; }
   catch (err) {
-    if (err.statusCode === 404 || err.statusCode === 410) // abonnement mort → nettoyage
-      await fetch(`${SB_URL}/push_subs?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: "DELETE", headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
-    else console.error("envoi KO", err.statusCode || err.message);
+    await fetch(`${SB_URL}/push_subs?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: "DELETE", headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
   }
 }
 console.log(`envoyé à ${ok}/${subs.length} appareil(s) : ${body}`);
