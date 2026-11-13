@@ -1,0 +1,20 @@
+name: Test menage (temporaire)
+# Déclencheur jetable : envoie la notification « Ménage du jour » à chaque push.
+# À SUPPRIMER après le test.
+on: [push]
+jobs:
+  envoyer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Envoyer
+        env:
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          SLOT: menage
+          FORCE: "1"
+        run: |
+          npm install --no-save web-push@3
+          node scripts/notify.mjs

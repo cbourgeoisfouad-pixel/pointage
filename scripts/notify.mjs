@@ -127,10 +127,14 @@ if (slot === "menage") {
   let ok = 0;
   for (const s of subs) {
     try { await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload); ok++; }
-    catch (err) { console.error("envoi KO", err.statusCode || err.message); }
+    catch (err) {
+      console.error("envoi KO", err.statusCode || err.message);
+      if (err.statusCode === 404 || err.statusCode === 410)
+        await fetch(`${SB_URL}/push_subs?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: "DELETE", headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
+    }
   }
   console.log(`menage → envoyé à ${ok}/${subs.length} : ${body.replace("\n", " · ")}`);
-  process.exit(0);
+  process.exit(ok ? 0 : 1);
 }
 
 const today = new Date(paris); today.setHours(12, 0, 0, 0);
@@ -177,3 +181,4 @@ for (const s of subs) {
   }
 }
 console.log(`envoyé à ${ok}/${subs.length} appareil(s) : ${body}`);
+if (!ok) process.exit(1);
