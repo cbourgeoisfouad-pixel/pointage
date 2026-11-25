@@ -1942,9 +1942,18 @@ function repWeek(d){ repWeekRef.setDate(repWeekRef.getDate()+d*7); renderWeekSig
 function weekKeyOf(){ return key(mondayOf(repWeekRef)); }
 function repEmpStep(d){ const sel=document.getElementById("repEmp"); const n=sel.options.length; if(!n) return; let i=sel.selectedIndex+d; if(i<0)i=n-1; if(i>=n)i=0; sel.selectedIndex=i; renderWeekRep(); }
 function fmtH(min){ if(min<=0) return "0 h 00"; const h=Math.floor(min/60), m=min%60; return h+" h "+String(m).padStart(2,"0"); }
-/* Jour férié chômé mais payé : les heures PRÉVUES au planning comptent dans les totaux */
+/* Jour férié chômé mais payé : on paie la journée CONTRACTUELLE normale
+   (contrat hebdo ÷ jours travaillés de la semaine de référence), pas les heures du planning.
+   Uniquement si le salarié était prévu au planning ce jour-là. */
 function ferieMins(dk,e){
   const p=planned(dk,e.id); if(!p.work) return 0;
+  const ch=parseFloat(String(e.contrat||"").replace(",", "."));
+  if(ch && !isNaN(ch) && ch>0){
+    const t=templates[e.id]||{}; let nj=0;
+    for(let d=1;d<=6;d++){ const x=t[d]; if(x&&x.work) nj++; }
+    if(nj>0) return Math.round(ch*60/nj);
+  }
+  // pas de contrat renseigné : repli sur les heures du planning
   const a=toMin(p.arr), b=toMin(p.dep); if(a==null||b==null||b<=a) return 0;
   return Math.max(0,(b-a)-(parseInt(empPause(e),10)||0));
 }
